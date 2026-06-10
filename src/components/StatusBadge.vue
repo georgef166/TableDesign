@@ -26,7 +26,7 @@ const cls = computed(() => ({
   padding: 3px 10px 3px 8px;
   border-radius: 99px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: .03em;
   line-height: 1;
 }

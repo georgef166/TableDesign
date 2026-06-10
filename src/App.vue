@@ -49,7 +49,12 @@ const columnDefs = ref([
   { headerName: 'Request Date', field: 'requestDate', flex: 1.1, minWidth: 150 },
   { headerName: 'Status', field: 'status', flex: 0.9, minWidth: 130,
     cellRenderer: markRaw(StatusBadge),
-    cellRendererParams: (p) => ({ params: p }) },
+    cellRendererParams: (p) => ({ params: p }),
+    cellClassRules: {
+      'status-ok': p => p.value === 'APPROVED',
+      'status-warn': p => p.value === 'PENDING',
+      'status-bad': p => p.value === 'REJECTED'
+    } },
   { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellClass: 'type-cell' },
   { headerName: 'Security', field: 'security', flex: 1.8, minWidth: 220,
     cellRenderer: markRaw(SecurityCell),
@@ -498,6 +503,10 @@ function showToast(msg, kind = 'ok') {
 .type-cell { color: var(--text-soft); font-weight: 600; font-size: 12px; letter-spacing: .02em; }
 .appr-pos { color: var(--ok); font-weight: 600; }
 .appr-zero { color: var(--text-mute); }
+/* Status word colored by value (also a fallback if the badge renderer is bypassed) */
+.status-ok   { color: var(--ok);   font-weight: 700; }
+.status-warn { color: var(--warn); font-weight: 700; }
+.status-bad  { color: var(--bad);  font-weight: 700; }
 .ag-theme-quartz .ag-header-cell-text { font-weight: 600; letter-spacing: .01em; }
 .ag-theme-quartz .ag-row { cursor: pointer; }
 </style>
