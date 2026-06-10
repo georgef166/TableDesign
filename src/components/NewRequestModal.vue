@@ -102,10 +102,8 @@ function submit() {
 .overlay {
   position: fixed; inset: 0;
   background: rgba(15, 23, 42, .45);
-  backdrop-filter: blur(3px);
   display: grid; place-items: center;
   padding: 24px; z-index: 50;
-  animation: fade .15s ease;
 }
 .modal {
   width: 100%; max-width: 560px;
@@ -113,7 +111,6 @@ function submit() {
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  animation: pop .18s cubic-bezier(.2,.9,.3,1.2);
 }
 .modal-head {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -128,7 +125,7 @@ function submit() {
   display: grid; place-items: center;
 }
 .icon-btn svg { width: 14px; height: 14px; }
-.icon-btn:hover { background: var(--border); }
+.icon-btn:hover { background: var(--border); color: var(--text); }
 
 .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -145,12 +142,11 @@ function submit() {
   background: var(--surface-2);
   color: var(--text);
   outline: none;
-  transition: border-color .12s, box-shadow .12s, background .12s;
+  transition: border-color .12s, background .12s;
 }
 .field input:focus, .field select:focus {
-  border-color: var(--brand-400);
+  border-color: var(--brand-500);
   background: var(--surface);
-  box-shadow: 0 0 0 3px var(--brand-50);
 }
 .field input.invalid { border-color: var(--bad); }
 .err { color: var(--bad); font-size: 11px; }
@@ -164,14 +160,10 @@ function submit() {
 .btn {
   border: 1px solid transparent; border-radius: var(--radius-sm);
   padding: 9px 18px; font-size: 13px; font-weight: 600;
-  transition: transform .08s, filter .12s;
+  transition: background .12s, border-color .12s;
 }
-.btn:active { transform: translateY(1px); }
 .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-soft); }
-.btn.ghost:hover { background: var(--border-2); }
+.btn.ghost:hover { background: var(--surface-2); border-color: var(--text-mute); }
 .btn.primary { background: var(--brand-500); color: #fff; }
-.btn.primary:hover { filter: brightness(1.07); }
-
-@keyframes fade { from { opacity: 0 } }
-@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98) } }
+.btn.primary:hover { background: var(--brand-700); }
 </style>

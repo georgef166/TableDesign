@@ -86,16 +86,14 @@ const request = computed(() => [
 .scrim {
   position: fixed; inset: 0; z-index: 55;
   background: rgba(15, 23, 42, .35);
-  backdrop-filter: blur(2px);
   display: flex; justify-content: flex-end;
-  animation: fade .15s ease;
 }
 .drawer {
   width: 400px; max-width: 92vw; height: 100%;
   background: var(--surface);
-  box-shadow: var(--shadow-lg);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
   display: flex; flex-direction: column;
-  animation: slide .22s cubic-bezier(.2,.9,.3,1);
   overflow: hidden;
 }
 .d-head {
@@ -110,7 +108,7 @@ const request = computed(() => [
   display: grid; place-items: center;
 }
 .icon-btn svg { width: 14px; height: 14px; }
-.icon-btn:hover { background: var(--border); }
+.icon-btn:hover { background: var(--border); color: var(--text); }
 .d-sec { margin: 0; padding: 0 22px 16px; color: var(--text-soft); font-size: 13px; border-bottom: 1px solid var(--border); }
 
 .d-body { padding: 8px 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; }
@@ -134,7 +132,4 @@ section h4 {
 .kv dt { font-size: 12px; color: var(--text-soft); }
 .kv dd { margin: 0; font-size: 13px; color: var(--text); }
 .kv dd.mono { font-family: var(--mono); font-size: 12px; }
-
-@keyframes fade { from { opacity: 0 } }
-@keyframes slide { from { transform: translateX(100%) } }
 </style>
