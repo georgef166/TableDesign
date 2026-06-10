@@ -55,9 +55,11 @@ const columnDefs = ref([
     cellRendererParams: (p) => ({ params: p }),
     getQuickFilterText: (p) =>
       [p.data.ticker, p.data.bbgTicker, p.data.security, p.data.sedol, p.data.isin, p.data.cusip, p.data.ric].join(' ') },
-  { headerName: 'Qty Req', field: 'qtyRequested', flex: 0.7, minWidth: 90, type: 'rightAligned', ...mono },
-  { headerName: 'Qty Appr', field: 'qtyApproved', flex: 0.7, minWidth: 90, type: 'rightAligned',
-    cellClass: (p) => p.value > 0 ? 'mono-cell appr-pos' : 'mono-cell appr-zero' },
+  // Numbers right-aligned in the body, but the HEADER stays default (label left,
+  // filter icon right) — so we right-align the cell only, not via type:'rightAligned'.
+  { headerName: 'Qty Req', field: 'qtyRequested', flex: 0.7, minWidth: 90, cellClass: 'mono-cell num-cell' },
+  { headerName: 'Qty Appr', field: 'qtyApproved', flex: 0.7, minWidth: 90,
+    cellClass: (p) => p.value > 0 ? 'mono-cell num-cell appr-pos' : 'mono-cell num-cell appr-zero' },
 
   // --- Reference set (hidden by default; toggle via column chooser) ---
   { headerName: 'Ticker', field: 'ticker', minWidth: 100, hide: true, cellClass: 'strong-cell' },
@@ -463,6 +465,8 @@ function showToast(msg, kind = 'ok') {
 <style>
 /* Global AG Grid cell helpers (un-scoped so they reach grid-rendered cells) */
 .mono-cell { font-family: var(--mono); font-size: 12.5px; color: var(--text-soft); }
+/* Right-align numeric cell VALUES without flipping the header (label stays left, filter right). */
+.num-cell { text-align: right; }
 .strong-cell { font-weight: 600; }
 .type-cell { color: var(--brand-700); font-weight: 600; font-size: 12px; letter-spacing: .02em; }
 .appr-pos { color: var(--ok); font-weight: 600; }
