@@ -9,6 +9,7 @@ import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
 import { seedLocates, STATUSES } from './data/locates.js'
+import scotiaLogo from './assets/scotiabank-logo.svg'
 
 /* ---------- state ---------- */
 const rows = ref([...seedLocates])
@@ -167,14 +168,8 @@ function showToast(msg, kind = 'ok') {
     <!-- Top bar -->
     <header class="topbar">
       <div class="brand">
-        <div class="logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-            <path d="M7 14l4-4 3 3 5-6" />
-            <path d="M17 7h4v4" />
-          </svg>
-        </div>
+        <img class="bank-logo" :src="scotiaLogo" alt="Scotiabank" />
+        <span class="brand-divider"></span>
         <div>
           <div class="brand-title">Locates</div>
           <div class="brand-sub">Trading Request Portal</div>
@@ -324,13 +319,13 @@ function showToast(msg, kind = 'ok') {
   color: #fff;
   box-shadow: 0 1px 0 rgba(255,255,255,.06);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
-.logo {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: rgba(255,255,255,.12);
-  display: grid; place-items: center; color: #fff;
+.brand { display: flex; align-items: center; gap: 14px; }
+.bank-logo {
+  height: 21px; width: auto;
+  /* logo ships in Scotia red; render white on the red bar */
+  filter: brightness(0) invert(1);
 }
-.logo svg { width: 20px; height: 20px; }
+.brand-divider { width: 1px; height: 26px; background: rgba(255,255,255,.28); }
 .brand-title { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
 .brand-sub { font-size: 11px; color: #aebfe0; }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
