@@ -16,7 +16,21 @@ const quickFilter = ref('')
 const statusFilter = ref('ALL')
 const showModal = ref(false)
 const selectedRecord = ref(null)
+const showColumns = ref(false)
 const toast = ref(null)
+
+// Columns the user can toggle back on (folded into Security / row detail by default).
+const toggleableCols = ref([
+  { field: 'ticker', label: 'Ticker', visible: false },
+  { field: 'bbgTicker', label: 'BBG Ticker', visible: false },
+  { field: 'batchId', label: 'Batch ID', visible: false },
+  { field: 'locateId', label: 'Locate ID', visible: false },
+  { field: 'sedol', label: 'SEDOL', visible: false },
+  { field: 'isin', label: 'ISIN', visible: false },
+  { field: 'ric', label: 'RIC', visible: false },
+  { field: 'cusip', label: 'CUSIP', visible: false }
+])
+const extraColCount = computed(() => toggleableCols.value.filter(c => c.visible).length)
 const gridApi = shallowRef(null)
 const lastRefreshed = ref('2026-06-09 16:22:21')
 let nextId = seedLocates.length + 1
@@ -36,7 +50,7 @@ const columnDefs = ref([
     cellRenderer: markRaw(StatusBadge),
     cellRendererParams: (p) => ({ params: p }) },
   { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellClass: 'type-cell' },
-  { headerName: 'Security', field: 'security', flex: 2.6, minWidth: 230,
+  { headerName: 'Security', field: 'security', flex: 1.8, minWidth: 220,
     cellRenderer: markRaw(SecurityCell),
     cellRendererParams: (p) => ({ params: p }),
     getQuickFilterText: (p) =>
@@ -82,6 +96,11 @@ function onGridReady(params) {
 
 function onRowClicked(e) {
   selectedRecord.value = e.data
+}
+
+function toggleColumn(col) {
+  col.visible = !col.visible
+  gridApi.value?.setColumnsVisible([col.field], col.visible)
 }
 
 function onQuickFilter(e) {
@@ -194,10 +213,32 @@ function showToast(msg, kind = 'ok') {
                  placeholder="Search ticker, SEDOL, ISIN, security…" />
         </div>
         <div class="toolbar-actions">
+          <div class="col-chooser">
+            <button class="btn ghost" :class="{ open: showColumns }" @click="showColumns = !showColumns">
+              ☰ Add columns
+              <span v-if="extraColCount" class="col-badge">{{ extraColCount }}</span>
+              <span class="caret">▾</span>
+            </button>
+            <div v-if="showColumns" class="col-catch" @click="showColumns = false"></div>
+            <div v-if="showColumns" class="col-panel">
+              <div class="col-panel-head">Show more columns</div>
+              <label v-for="c in toggleableCols" :key="c.field" class="col-opt">
+                <input type="checkbox" :checked="c.visible" @change="toggleColumn(c)" />
+                <span>{{ c.label }}</span>
+              </label>
+              <p class="col-hint">These identifiers are folded into the Security column by default — tick any to add it as its own column, or click a row to see them all.</p>
+            </div>
+          </div>
           <button class="btn ghost" @click="clearFilters">Clear</button>
           <button class="btn ghost" @click="refresh">↻ Refresh</button>
         </div>
       </div>
+
+      <!-- Discoverability hint -->
+      <p class="grid-hint">
+        Showing key columns. <b>Click a row</b> for the full record, or use
+        <b>“☰ Add columns”</b> to bring back SEDOL, ISIN, CUSIP and other identifiers.
+      </p>
 
       <!-- Grid -->
       <div class="grid-wrap ag-theme-quartz">
@@ -329,6 +370,45 @@ function showToast(msg, kind = 'ok') {
 }
 .search input:focus { border-color: var(--brand-400); box-shadow: 0 0 0 3px var(--brand-50); }
 .toolbar-actions { display: flex; gap: 8px; }
+
+/* Discoverability hint */
+.grid-hint {
+  margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft);
+}
+.grid-hint b { color: var(--text); font-weight: 600; }
+
+/* Column chooser */
+.col-chooser { position: relative; }
+.btn.ghost.open { border-color: var(--brand-400); color: var(--brand-700); background: var(--brand-50); }
+.caret { font-size: 9px; color: var(--text-mute); }
+.col-badge {
+  display: inline-grid; place-items: center; min-width: 17px; height: 17px;
+  padding: 0 4px; margin-left: 2px; border-radius: 99px;
+  background: var(--brand-500); color: #fff; font-size: 10px; font-weight: 700;
+}
+.col-catch { position: fixed; inset: 0; z-index: 19; }
+.col-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  width: 230px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); padding: 8px;
+  animation: pop .14s ease;
+}
+.col-panel-head {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-mute); padding: 6px 8px 8px;
+}
+.col-opt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: 7px; font-size: 13px; cursor: pointer;
+}
+.col-opt:hover { background: var(--surface-2); }
+.col-opt input { width: 15px; height: 15px; accent-color: var(--brand-500); cursor: pointer; }
+.col-hint {
+  margin: 6px 8px 2px; padding-top: 8px; border-top: 1px solid var(--border-2);
+  font-size: 11px; color: var(--text-mute); line-height: 1.4;
+}
+@keyframes pop { from { opacity: 0; transform: translateY(-4px) } }
 
 /* Grid */
 .grid-wrap {
