@@ -7,6 +7,7 @@ import 'ag-grid-community/styles/ag-theme-quartz.css'
 import StatusBadge from './components/StatusBadge.vue'
 import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
+import DetailDrawer from './components/DetailDrawer.vue'
 import { seedLocates, STATUSES } from './data/locates.js'
 
 /* ---------- state ---------- */
@@ -14,6 +15,7 @@ const rows = ref([...seedLocates])
 const quickFilter = ref('')
 const statusFilter = ref('ALL')
 const showModal = ref(false)
+const selectedRecord = ref(null)
 const toast = ref(null)
 const gridApi = shallowRef(null)
 const lastRefreshed = ref('2026-06-09 16:22:21')
@@ -76,6 +78,10 @@ const counts = computed(() => {
 /* ---------- handlers ---------- */
 function onGridReady(params) {
   gridApi.value = params.api
+}
+
+function onRowClicked(e) {
+  selectedRecord.value = e.data
 }
 
 function onQuickFilter(e) {
@@ -208,12 +214,16 @@ function showToast(msg, kind = 'ok') {
           :animateRows="true"
           rowSelection="single"
           @grid-ready="onGridReady"
+          @row-clicked="onRowClicked"
         />
       </div>
     </main>
 
     <!-- Modal -->
     <NewRequestModal v-if="showModal" @close="showModal = false" @submit="handleNewRequest" />
+
+    <!-- Row-detail drawer -->
+    <DetailDrawer v-if="selectedRecord" :record="selectedRecord" @close="selectedRecord = null" />
 
     <!-- Toast -->
     <transition name="toast">
@@ -378,4 +388,5 @@ function showToast(msg, kind = 'ok') {
 .appr-pos { color: var(--ok); font-weight: 600; }
 .appr-zero { color: var(--text-mute); }
 .ag-theme-quartz .ag-header-cell-text { font-weight: 600; letter-spacing: .01em; }
+.ag-theme-quartz .ag-row { cursor: pointer; }
 </style>
