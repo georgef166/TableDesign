@@ -5,6 +5,7 @@ import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 import StatusBadge from './components/StatusBadge.vue'
+import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import { seedLocates, STATUSES } from './data/locates.js'
 
@@ -18,28 +19,39 @@ const gridApi = shallowRef(null)
 const lastRefreshed = ref('2026-06-09 16:22:21')
 let nextId = seedLocates.length + 1
 
-/* ---------- columns ---------- */
+/* ---------- columns ----------
+ * Two tiers: a compact, flex-sized SCAN set shown by default (fills the width,
+ * so there is no horizontal scroll), and demoted REFERENCE columns hidden by
+ * default — the redundant identifiers are folded into the Security cell and
+ * remain reachable via the row-detail drawer and column chooser.
+ */
 const mono = { cellClass: 'mono-cell' }
 
 const columnDefs = ref([
-  { headerName: 'Request Date', field: 'requestDate', minWidth: 165, pinned: 'left' },
-  { headerName: 'Type', field: 'type', width: 130,
-    cellClass: 'type-cell' },
-  { headerName: 'Batch ID', field: 'batchId', width: 110, ...mono },
-  { headerName: 'Locate ID', field: 'locateId', width: 120, ...mono },
-  { headerName: 'Status', field: 'status', width: 140,
+  // --- Scan set (visible, flex-sized) ---
+  { headerName: 'Request Date', field: 'requestDate', flex: 1.1, minWidth: 150 },
+  { headerName: 'Status', field: 'status', flex: 0.9, minWidth: 130,
     cellRenderer: markRaw(StatusBadge),
     cellRendererParams: (p) => ({ params: p }) },
-  { headerName: 'SEDOL', field: 'sedol', width: 110, ...mono },
-  { headerName: 'ISIN', field: 'isin', width: 140, ...mono },
-  { headerName: 'RIC', field: 'ric', width: 110, ...mono },
-  { headerName: 'CUSIP', field: 'cusip', width: 120, ...mono },
-  { headerName: 'Ticker', field: 'ticker', width: 100, cellClass: 'strong-cell' },
-  { headerName: 'BBG Ticker', field: 'bbgTicker', width: 120 },
-  { headerName: 'Security', field: 'security', minWidth: 260, flex: 1 },
-  { headerName: 'Qty Req', field: 'qtyRequested', width: 100, type: 'rightAligned', ...mono },
-  { headerName: 'Qty Appr', field: 'qtyApproved', width: 100, type: 'rightAligned',
-    cellClass: (p) => p.value > 0 ? 'mono-cell appr-pos' : 'mono-cell appr-zero' }
+  { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellClass: 'type-cell' },
+  { headerName: 'Security', field: 'security', flex: 2.6, minWidth: 230,
+    cellRenderer: markRaw(SecurityCell),
+    cellRendererParams: (p) => ({ params: p }),
+    getQuickFilterText: (p) =>
+      [p.data.ticker, p.data.bbgTicker, p.data.security, p.data.sedol, p.data.isin, p.data.cusip, p.data.ric].join(' ') },
+  { headerName: 'Qty Req', field: 'qtyRequested', flex: 0.7, minWidth: 90, type: 'rightAligned', ...mono },
+  { headerName: 'Qty Appr', field: 'qtyApproved', flex: 0.7, minWidth: 90, type: 'rightAligned',
+    cellClass: (p) => p.value > 0 ? 'mono-cell appr-pos' : 'mono-cell appr-zero' },
+
+  // --- Reference set (hidden by default; toggle via column chooser) ---
+  { headerName: 'Ticker', field: 'ticker', minWidth: 100, hide: true, cellClass: 'strong-cell' },
+  { headerName: 'BBG Ticker', field: 'bbgTicker', minWidth: 120, hide: true },
+  { headerName: 'Batch ID', field: 'batchId', minWidth: 110, hide: true, ...mono },
+  { headerName: 'Locate ID', field: 'locateId', minWidth: 120, hide: true, ...mono },
+  { headerName: 'SEDOL', field: 'sedol', minWidth: 110, hide: true, ...mono },
+  { headerName: 'ISIN', field: 'isin', minWidth: 140, hide: true, ...mono },
+  { headerName: 'RIC', field: 'ric', minWidth: 110, hide: true, ...mono },
+  { headerName: 'CUSIP', field: 'cusip', minWidth: 120, hide: true, ...mono }
 ])
 
 const defaultColDef = {
@@ -188,7 +200,7 @@ function showToast(msg, kind = 'ok') {
           :columnDefs="columnDefs"
           :rowData="filteredRows"
           :defaultColDef="defaultColDef"
-          :rowHeight="46"
+          :rowHeight="58"
           :headerHeight="44"
           :pagination="true"
           :paginationPageSize="10"
