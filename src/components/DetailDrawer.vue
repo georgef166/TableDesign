@@ -34,7 +34,10 @@ const request = computed(() => [
           <span class="d-ticker">{{ r.ticker }}</span>
           <StatusBadge :params="{ value: r.status }" />
         </div>
-        <button class="icon-btn" @click="emit('close')" aria-label="Close">✕</button>
+        <button class="icon-btn" @click="emit('close')" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
       </header>
       <p class="d-sec">{{ r.security }}</p>
 
@@ -103,8 +106,10 @@ const request = computed(() => [
 .d-ticker { font-size: 19px; font-weight: 700; }
 .icon-btn {
   border: none; background: var(--surface-2); color: var(--text-soft);
-  width: 30px; height: 30px; border-radius: 8px; font-size: 13px;
+  width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center;
 }
+.icon-btn svg { width: 14px; height: 14px; }
 .icon-btn:hover { background: var(--border); }
 .d-sec { margin: 0; padding: 0 22px 16px; color: var(--text-soft); font-size: 13px; border-bottom: 1px solid var(--border); }
 

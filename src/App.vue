@@ -167,7 +167,14 @@ function showToast(msg, kind = 'ok') {
     <!-- Top bar -->
     <header class="topbar">
       <div class="brand">
-        <div class="logo">📈</div>
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+            <path d="M7 14l4-4 3 3 5-6" />
+            <path d="M17 7h4v4" />
+          </svg>
+        </div>
         <div>
           <div class="brand-title">Locates</div>
           <div class="brand-sub">Trading Request Portal</div>
@@ -187,7 +194,9 @@ function showToast(msg, kind = 'ok') {
           <p>Review, filter and submit security locate requests to the desk.</p>
         </div>
         <button class="btn primary lg" @click="showModal = true">
-          <span class="plus">＋</span> New Locate Request
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+          New Locate Request
         </button>
       </div>
 
@@ -210,16 +219,28 @@ function showToast(msg, kind = 'ok') {
       <!-- Toolbar -->
       <div class="toolbar">
         <div class="search">
-          <span class="search-ico">⌕</span>
+          <span class="search-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+          </span>
           <input :value="quickFilter" @input="onQuickFilter"
                  placeholder="Search ticker, SEDOL, ISIN, security…" />
         </div>
         <div class="toolbar-actions">
           <div class="col-chooser">
             <button class="btn ghost" :class="{ open: showColumns }" @click="showColumns = !showColumns">
-              ☰ Add columns
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                <path d="M9 4v16M15 4v16" />
+              </svg>
+              Add columns
               <span v-if="extraColCount" class="col-badge">{{ extraColCount }}</span>
-              <span class="caret">▾</span>
+              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
             </button>
             <div v-if="showColumns" class="col-catch" @click="showColumns = false"></div>
             <div v-if="showColumns" class="col-panel">
@@ -232,14 +253,21 @@ function showToast(msg, kind = 'ok') {
             </div>
           </div>
           <button class="btn ghost" @click="clearFilters">Clear</button>
-          <button class="btn ghost" @click="refresh">↻ Refresh</button>
+          <button class="btn ghost" @click="refresh">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <path d="M21 3v6h-6" />
+            </svg>
+            Refresh
+          </button>
         </div>
       </div>
 
       <!-- Discoverability hint -->
       <p class="grid-hint">
         Showing key columns. <b>Click a row</b> for the full record, or use
-        <b>“☰ Add columns”</b> to bring back SEDOL, ISIN, CUSIP and other identifiers.
+        <b>“Add columns”</b> to bring back SEDOL, ISIN, CUSIP and other identifiers.
       </p>
 
       <!-- Grid -->
@@ -271,7 +299,14 @@ function showToast(msg, kind = 'ok') {
     <!-- Toast -->
     <transition name="toast">
       <div v-if="toast" class="toast" :class="toast.kind">
-        <span class="toast-ico">{{ toast.kind === 'ok' ? '✓' : 'ℹ' }}</span>
+        <span class="toast-ico">
+          <svg v-if="toast.kind === 'ok'" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.5" />
+          </svg>
+        </span>
         {{ toast.msg }}
       </div>
     </transition>
@@ -293,8 +328,9 @@ function showToast(msg, kind = 'ok') {
 .logo {
   width: 36px; height: 36px; border-radius: 10px;
   background: rgba(255,255,255,.12);
-  display: grid; place-items: center; font-size: 18px;
+  display: grid; place-items: center; color: #fff;
 }
+.logo svg { width: 20px; height: 20px; }
 .brand-title { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
 .brand-sub { font-size: 11px; color: #aebfe0; }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
@@ -324,7 +360,7 @@ function showToast(msg, kind = 'ok') {
 .btn.primary { background: var(--brand-500); color: #fff; box-shadow: 0 6px 16px rgba(31,95,209,.28); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.lg { padding: 11px 20px; font-size: 14px; }
-.plus { font-size: 16px; line-height: 1; }
+.btn .ic { width: 15px; height: 15px; flex: none; }
 .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-soft); }
 .btn.ghost:hover { background: var(--border-2); }
 
@@ -360,9 +396,10 @@ function showToast(msg, kind = 'ok') {
 }
 .search { position: relative; flex: 1; max-width: 420px; }
 .search-ico {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-  color: var(--text-mute); font-size: 16px;
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--text-mute); display: grid; place-items: center;
 }
+.search-ico svg { width: 16px; height: 16px; }
 .search input {
   width: 100%; font-family: inherit; font-size: 13px;
   padding: 10px 12px 10px 34px;
@@ -382,7 +419,7 @@ function showToast(msg, kind = 'ok') {
 /* Column chooser */
 .col-chooser { position: relative; }
 .btn.ghost.open { border-color: var(--brand-400); color: var(--brand-700); background: var(--brand-50); }
-.caret { font-size: 9px; color: var(--text-mute); }
+.caret { width: 12px; height: 12px; color: var(--text-mute); flex: none; }
 .col-badge {
   display: inline-grid; place-items: center; min-width: 17px; height: 17px;
   padding: 0 4px; margin-left: 2px; border-radius: 99px;
@@ -451,6 +488,7 @@ function showToast(msg, kind = 'ok') {
   width: 22px; height: 22px; border-radius: 50%;
   display: grid; place-items: center; color: #fff; font-size: 12px;
 }
+.toast-ico svg { width: 13px; height: 13px; }
 .toast.ok .toast-ico { background: var(--ok); }
 .toast.info .toast-ico { background: var(--brand-400); }
 .toast-enter-active, .toast-leave-active { transition: all .25s cubic-bezier(.2,.9,.3,1.1); }

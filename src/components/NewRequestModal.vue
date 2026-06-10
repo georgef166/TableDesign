@@ -39,7 +39,10 @@ function submit() {
           <h2>New Locate Request</h2>
           <p>Submit a new security locate to the desk for approval.</p>
         </div>
-        <button class="icon-btn" @click="emit('close')" aria-label="Close">✕</button>
+        <button class="icon-btn" @click="emit('close')" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
       </header>
 
       <div class="modal-body">
@@ -121,8 +124,10 @@ function submit() {
 .modal-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-soft); }
 .icon-btn {
   border: none; background: var(--surface-2); color: var(--text-soft);
-  width: 30px; height: 30px; border-radius: 8px; font-size: 13px;
+  width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center;
 }
+.icon-btn svg { width: 14px; height: 14px; }
 .icon-btn:hover { background: var(--border); }
 
 .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
