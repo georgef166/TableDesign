@@ -352,7 +352,7 @@ function showToast(msg, kind = 'ok') {
   transition: transform .08s, filter .12s, background .12s;
 }
 .btn:active { transform: translateY(1px); }
-.btn.primary { background: var(--brand-500); color: #fff; box-shadow: 0 6px 16px rgba(31,95,209,.28); }
+.btn.primary { background: var(--brand-500); color: #fff; box-shadow: 0 6px 16px rgba(235,15,25,.28); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.lg { padding: 11px 20px; font-size: 14px; }
 .btn .ic { width: 15px; height: 15px; flex: none; }

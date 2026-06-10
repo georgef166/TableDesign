@@ -101,7 +101,7 @@ function submit() {
 <style scoped>
 .overlay {
   position: fixed; inset: 0;
-  background: rgba(10, 31, 68, .45);
+  background: rgba(15, 23, 42, .45);
   backdrop-filter: blur(3px);
   display: grid; place-items: center;
   padding: 24px; z-index: 50;

@@ -85,7 +85,7 @@ const request = computed(() => [
 <style scoped>
 .scrim {
   position: fixed; inset: 0; z-index: 55;
-  background: rgba(10, 31, 68, .35);
+  background: rgba(15, 23, 42, .35);
   backdrop-filter: blur(2px);
   display: flex; justify-content: flex-end;
   animation: fade .15s ease;
