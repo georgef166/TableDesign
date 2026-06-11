@@ -13,21 +13,23 @@
   --border:    #e6eaf2;
   --border-2:  #eef1f7;
 
-  /* Text */
-  --text:      #0f172a;
-  --text-soft: #475569;
-  --text-mute: #8a96aa;
+  /* Text — black-first; the soft/mute tones are near-black so secondary text
+     still reads black while keeping a faint hierarchy. */
+  --text:      #000000;
+  --text-soft: #1a1a1a;
+  --text-mute: #3a3a3a;
 
-  /* Status */
-  --ok:        #15803d;
+  /* Status — foreground tones tuned to clear WCAG AA (4.5:1) on BOTH
+     white rows and the tinted badge backgrounds beside them. */
+  --ok:        #0f6b34;
   --ok-bg:     #e7f7ed;
-  --warn:      #b45309;
+  --warn:      #92400e;
   --warn-bg:   #fdf3e3;
-  --bad:       #eb0f19;
+  --bad:       #b00d15;
   --bad-bg:    #fdecec;
 
-  --radius:    14px;
-  --radius-sm: 9px;
+  --radius:    4px;
+  --radius-sm: 3px;
   --shadow:    0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.06);
   --shadow-lg: 0 20px 60px rgba(15,23,42,.22);
 
@@ -53,6 +55,16 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+
+/* Visible keyboard focus for every interactive control (WCAG 2.4.7).
+   Only shows for keyboard users, never on mouse click. */
+button:focus-visible,
+input:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar { height: 10px; width: 10px; }
