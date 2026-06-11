@@ -5,6 +5,7 @@ import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 import StatusBadge from './components/StatusBadge.vue'
+import StatusIcon from './components/StatusIcon.vue'
 import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
@@ -106,6 +107,14 @@ function onRowClicked(e) {
   selectedRecord.value = e.data
 }
 
+// Keyboard parity: open the detail drawer with Enter/Space on the focused row.
+function onCellKeyDown(e) {
+  if (e.event?.key === 'Enter' || e.event?.key === ' ') {
+    e.event.preventDefault()
+    selectedRecord.value = e.data
+  }
+}
+
 function toggleColumn(col) {
   col.visible = !col.visible
   gridApi.value?.setColumnsVisible([col.field], col.visible)
@@ -200,19 +209,27 @@ function showToast(msg, kind = 'ok') {
         </button>
       </div>
 
-      <!-- Status stat chips -->
-      <div class="stats">
-        <button class="stat" :class="{ active: statusFilter === 'ALL' }" @click="statusFilter = 'ALL'">
-          <span class="stat-num">{{ counts.ALL }}</span><span class="stat-lbl">All Requests</span>
+      <!-- Status filter cards (a toggle group; selection is shown by icon + colour + border, never colour alone) -->
+      <div class="stats" role="group" aria-label="Filter requests by status">
+        <button class="stat" :class="{ active: statusFilter === 'ALL' }"
+                :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
+          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num">{{ counts.ALL }}</span></span>
+          <span class="stat-lbl">All Requests</span>
         </button>
-        <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }" @click="statusFilter = 'APPROVED'">
-          <span class="stat-num">{{ counts.APPROVED }}</span><span class="stat-lbl">Approved</span>
+        <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
+                :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
+          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num">{{ counts.APPROVED }}</span></span>
+          <span class="stat-lbl">Approved</span>
         </button>
-        <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }" @click="statusFilter = 'PENDING'">
-          <span class="stat-num">{{ counts.PENDING }}</span><span class="stat-lbl">Pending</span>
+        <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
+                :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
+          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num">{{ counts.PENDING }}</span></span>
+          <span class="stat-lbl">Pending</span>
         </button>
-        <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }" @click="statusFilter = 'REJECTED'">
-          <span class="stat-num">{{ counts.REJECTED }}</span><span class="stat-lbl">Rejected</span>
+        <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
+                :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
+          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num">{{ counts.REJECTED }}</span></span>
+          <span class="stat-lbl">Rejected</span>
         </button>
       </div>
 
@@ -227,6 +244,7 @@ function showToast(msg, kind = 'ok') {
             </svg>
           </span>
           <input :value="quickFilter" @input="onQuickFilter"
+                 aria-label="Search requests by ticker, SEDOL, ISIN or security"
                  placeholder="Search ticker, SEDOL, ISIN, security…" />
         </div>
         <div class="toolbar-actions">
@@ -286,6 +304,7 @@ function showToast(msg, kind = 'ok') {
           rowSelection="single"
           @grid-ready="onGridReady"
           @row-clicked="onRowClicked"
+          @cell-key-down="onCellKeyDown"
         />
       </div>
     </main>
@@ -376,14 +395,16 @@ function showToast(msg, kind = 'ok') {
   background: var(--brand-500); opacity: 0; transition: opacity .12s;
 }
 .stat:hover { border-color: var(--text-mute); }
-.stat.active { border-color: var(--brand-500); }
+.stat.active { border-color: var(--brand-500); border-width: 2px; padding: 13px 15px; }
 .stat.active::before { opacity: 1; }
-.stat.ok.active::before, .stat.ok .stat-num { color: var(--ok); }
-.stat.warn.active::before, .stat.warn .stat-num { color: var(--warn); }
-.stat.bad.active::before, .stat.bad .stat-num { color: var(--bad); }
+.stat .status-ic { color: var(--text-mute); }
+.stat.ok.active::before, .stat.ok .stat-num, .stat.ok .status-ic { color: var(--ok); }
+.stat.warn.active::before, .stat.warn .stat-num, .stat.warn .status-ic { color: var(--warn); }
+.stat.bad.active::before, .stat.bad .stat-num, .stat.bad .status-ic { color: var(--bad); }
 .stat.ok::before { background: var(--ok); }
 .stat.warn::before { background: var(--warn); }
 .stat.bad::before { background: var(--bad); }
+.stat-top { display: flex; align-items: center; gap: 8px; }
 .stat-num { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
 .stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 500; }
 
