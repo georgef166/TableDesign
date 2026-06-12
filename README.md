@@ -17,9 +17,30 @@ modal, and toast notifications).
 - **Status badges** — color-coded Approved / Pending / Rejected pills.
 - **Quick search** across ticker, SEDOL, ISIN and security name.
 - **Status filter chips** with live counts.
-- **New Locate Request** modal with validation.
 - Refresh / Clear controls and toast feedback.
 - Sorting, resizing, and pagination out of the box.
+
+### FY26 feedback features
+
+These map the TALP FY26 improvement list onto the redesign. Backend-dependent parts
+run as **working front-end mocks** (in-memory + `localStorage`) pending the future webservice.
+
+- **Security free-text lookup** — a Google-Finance-style typeahead (`SecurityTypeahead.vue`)
+  searching ticker / name / ISIN / SEDOL / CUSIP / RIC, replacing the slow legacy drop-down.
+  One selection auto-fills every identifier.
+- **Locate by market value** — the New Request modal toggles between Shares and a USD
+  amount (with an estimated-share readout from last price).
+- **Bulk file uploader** — drop a CSV; columns are matched **by header name in any order**,
+  with a mapping + per-row validation preview before import.
+- **Standing lists + scheduling** — save reusable security baskets with a
+  Daily / Weekdays / Weekly schedule, computed "next run", persistence, and **Run now**.
+- **User impersonation** — admin "view as user" switcher; an impersonation banner appears
+  and the grid scopes to that client's requests, for troubleshooting.
+- **Availability files** — an in-portal availability view (sample data) with a one-click
+  **Locate** shortcut that prefills the request modal.
+
+_Out of scope:_ the session timeout (Scotia infra) and the TBD extra columns
+(Div Level, Min holding period, Uncallable, Long/short-sale, Trading stock — need more info).
 
 ## Stack
 
