@@ -9,7 +9,13 @@ import StatusIcon from './components/StatusIcon.vue'
 import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
-import { seedLocates, STATUSES } from './data/locates.js'
+import FileUploadModal from './components/FileUploadModal.vue'
+import StandingLists from './components/StandingLists.vue'
+import AvailabilityView from './components/AvailabilityView.vue'
+import ImpersonationBar from './components/ImpersonationBar.vue'
+import { seedLocates } from './data/locates.js'
+import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
+import { useLocalStore } from './composables/useLocalStore.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
 
 /* ---------- state ---------- */
@@ -17,9 +23,39 @@ const rows = ref([...seedLocates])
 const quickFilter = ref('')
 const statusFilter = ref('ALL')
 const showModal = ref(false)
+const showUpload = ref(false)
+const prefillSecurity = ref(null)
 const selectedRecord = ref(null)
 const showColumns = ref(false)
 const toast = ref(null)
+
+/* ---------- navigation ---------- */
+const VIEWS = [
+  { id: 'requests', label: 'Locate Requests' },
+  { id: 'standing', label: 'Standing Lists' },
+  { id: 'availability', label: 'Availability' }
+]
+const activeView = ref('requests')
+
+/* ---------- user / impersonation ---------- */
+const realUser = ADMIN_USER
+const impersonatingId = useLocalStore('impersonating-user-id', null)
+const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
+const effectiveUser = computed(() => impersonating.value || realUser)
+const showUserMenu = ref(false)
+
+function impersonate(user) {
+  impersonatingId.value = user.id
+  showUserMenu.value = false
+  activeView.value = 'requests'
+  showToast(`Now viewing as ${user.name}`, 'info')
+}
+function exitImpersonation() {
+  const was = impersonating.value?.name
+  impersonatingId.value = null
+  showUserMenu.value = false
+  showToast(was ? `Exited — back to ${realUser.name}` : 'Exited impersonation', 'info')
+}
 
 // Columns the user can toggle back on (folded into Security / row detail by default).
 const toggleableCols = ref([
@@ -87,14 +123,20 @@ const defaultColDef = {
 }
 
 /* ---------- derived ---------- */
+// When impersonating a client, the grid + counts are scoped to that client's
+// requests so support sees exactly what the client sees.
+const scopedRows = computed(() =>
+  impersonating.value ? rows.value.filter(r => r.requester === impersonating.value.id) : rows.value
+)
+
 const filteredRows = computed(() => {
-  if (statusFilter.value === 'ALL') return rows.value
-  return rows.value.filter(r => r.status === statusFilter.value)
+  if (statusFilter.value === 'ALL') return scopedRows.value
+  return scopedRows.value.filter(r => r.status === statusFilter.value)
 })
 
 const counts = computed(() => {
-  const c = { ALL: rows.value.length, APPROVED: 0, PENDING: 0, REJECTED: 0 }
-  for (const r of rows.value) c[r.status]++
+  const c = { ALL: scopedRows.value.length, APPROVED: 0, PENDING: 0, REJECTED: 0 }
+  for (const r of scopedRows.value) c[r.status]++
   return c
 })
 
@@ -139,27 +181,64 @@ function refresh() {
   showToast('Grid refreshed', 'info')
 }
 
-function handleNewRequest(form) {
-  const record = {
-    id: nextId++,
+// Build a PENDING locate record from a partial form (shared by the single-request
+// modal, the bulk uploader and standing-list runs). Stamps the requester to the
+// effective user so impersonated/own requests filter correctly.
+function buildRecord(form) {
+  const id = nextId++
+  return {
+    id,
     requestDate: stamp(),
-    type: form.type,
-    batchId: 608262 + nextId,
-    locateId: 93995504 + nextId,
+    type: form.type || 'WEBSERVICE',
+    batchId: 608262 + id,
+    locateId: 93995504 + id,
     status: 'PENDING',
     sedol: form.sedol || '',
     isin: form.isin || '',
-    ric: '',
+    ric: form.ric || '',
     cusip: form.cusip || '',
     ticker: form.ticker,
-    bbgTicker: form.ticker ? `${form.ticker} US` : '',
+    bbgTicker: form.bbgTicker || (form.ticker ? `${form.ticker} US` : ''),
     security: form.security,
-    qtyRequested: form.qtyRequested,
-    qtyApproved: 0
+    qtyRequested: form.qtyRequested || 0,
+    qtyApproved: 0,
+    requester: effectiveUser.value.id,
+    locateBy: form.locateBy || 'SHARES',
+    marketValue: form.marketValue ?? null
   }
-  rows.value = [record, ...rows.value]
+}
+
+function handleNewRequest(form) {
+  rows.value = [buildRecord(form), ...rows.value]
   showModal.value = false
+  prefillSecurity.value = null
+  activeView.value = 'requests'
   showToast(`Successfully created locate · ${form.ticker}`, 'ok')
+}
+
+function handleBulkUpload(records) {
+  const built = records.map(buildRecord)
+  rows.value = [...built, ...rows.value]
+  showUpload.value = false
+  activeView.value = 'requests'
+  showToast(`Imported ${built.length} locate${built.length === 1 ? '' : 's'}`, 'ok')
+}
+
+// "Run now" on a standing list — inject each item as a PENDING request.
+function runStandingList(list) {
+  const built = list.items.map(it => buildRecord({
+    type: 'BULK', ticker: it.ticker, security: it.security, isin: it.isin,
+    locateBy: it.locateBy, qtyRequested: it.qtyRequested, marketValue: it.marketValue
+  }))
+  rows.value = [...built, ...rows.value]
+  activeView.value = 'requests'
+  showToast(`Ran “${list.name}” · ${built.length} locate${built.length === 1 ? '' : 's'} submitted`, 'ok')
+}
+
+// "Locate" from the Availability view — open the request modal prefilled.
+function locateFromAvailability(security) {
+  prefillSecurity.value = security
+  showModal.value = true
 }
 
 function stamp() {
@@ -191,22 +270,64 @@ function showToast(msg, kind = 'ok') {
       </div>
       <div class="topbar-right">
         <span class="refreshed">Refreshed at <b>{{ lastRefreshed }}</b></span>
-        <div class="avatar" title="george.farag166@gmail.com">GF</div>
+        <div class="user-menu">
+          <button class="avatar" :class="{ imp: impersonating }"
+                  @click="showUserMenu = !showUserMenu"
+                  :aria-expanded="showUserMenu" aria-haspopup="true"
+                  :title="effectiveUser.email">{{ effectiveUser.initials }}</button>
+          <div v-if="showUserMenu" class="um-catch" @click="showUserMenu = false"></div>
+          <div v-if="showUserMenu" class="um-panel">
+            <div class="um-head">
+              <div class="um-name">{{ realUser.name }}</div>
+              <div class="um-mail">{{ realUser.email }}</div>
+              <span class="um-role">{{ realUser.role }}</span>
+            </div>
+            <div v-if="impersonating" class="um-current">
+              Viewing as <b>{{ impersonating.name }}</b>
+              <button class="um-exit" @click="exitImpersonation">Exit</button>
+            </div>
+            <div class="um-sec">View as user</div>
+            <button v-for="u in CLIENT_USERS" :key="u.id" class="um-opt"
+                    :class="{ on: impersonatingId === u.id }" @click="impersonate(u)">
+              <span class="um-ini">{{ u.initials }}</span>
+              <span class="um-opt-main"><b>{{ u.name }}</b><small>{{ u.firm }}</small></span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
+    <!-- Impersonation banner -->
+    <ImpersonationBar v-if="impersonating" :user="impersonating" @exit="exitImpersonation" />
+
+    <!-- View navigation -->
+    <nav class="viewnav" aria-label="Sections">
+      <button v-for="v in VIEWS" :key="v.id" class="vn-tab" :class="{ on: activeView === v.id }"
+              :aria-current="activeView === v.id ? 'page' : undefined" @click="activeView = v.id">
+        {{ v.label }}
+      </button>
+    </nav>
+
     <main class="content">
+     <section v-if="activeView === 'requests'">
       <!-- Page heading + primary action -->
       <div class="page-head">
         <div>
           <h1>Locate Requests</h1>
           <p>Review, filter and submit security locate requests to the desk.</p>
         </div>
-        <button class="btn primary lg" @click="showModal = true">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-               stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-          New Locate Request
-        </button>
+        <div class="head-actions">
+          <button class="btn ghost lg" @click="showUpload = true">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" /></svg>
+            Upload
+          </button>
+          <button class="btn primary lg" @click="showModal = true">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+            New Locate Request
+          </button>
+        </div>
       </div>
 
       <!-- Status filter cards (a toggle group; selection is shown by icon + colour + border, never colour alone) -->
@@ -307,10 +428,21 @@ function showToast(msg, kind = 'ok') {
           @cell-key-down="onCellKeyDown"
         />
       </div>
+     </section>
+
+      <!-- Standing Lists view -->
+      <StandingLists v-else-if="activeView === 'standing'" @run="runStandingList" />
+
+      <!-- Availability view -->
+      <AvailabilityView v-else-if="activeView === 'availability'" @locate="locateFromAvailability" />
     </main>
 
     <!-- Modal -->
-    <NewRequestModal v-if="showModal" @close="showModal = false" @submit="handleNewRequest" />
+    <NewRequestModal v-if="showModal" :prefill="prefillSecurity"
+                     @close="showModal = false; prefillSecurity = null" @submit="handleNewRequest" />
+
+    <!-- Bulk upload -->
+    <FileUploadModal v-if="showUpload" @close="showUpload = false" @submit="handleBulkUpload" />
 
     <!-- Row-detail drawer -->
     <DetailDrawer v-if="selectedRecord" :record="selectedRecord" @close="selectedRecord = null" />
@@ -355,10 +487,54 @@ function showToast(msg, kind = 'ok') {
 .refreshed { font-size: 12px; color: rgba(255,255,255,.78); }
 .refreshed b { color: #fff; font-weight: 600; }
 .avatar {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 50%; border: none;
   background: rgba(255,255,255,.16); color: #fff;
   display: grid; place-items: center; font-size: 12px; font-weight: 700;
 }
+.avatar.imp { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--brand-900); }
+
+/* User / impersonation menu */
+.user-menu { position: relative; }
+.um-catch { position: fixed; inset: 0; z-index: 39; }
+.um-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40;
+  width: 268px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow); padding: 8px;
+}
+.um-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--border-2); }
+.um-name { font-size: 13px; font-weight: 700; }
+.um-mail { font-size: 11.5px; color: var(--text-soft); }
+.um-role { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--brand-700); background: var(--brand-50); border-radius: 99px; padding: 2px 8px; }
+.um-current {
+  display: flex; align-items: center; gap: 6px; margin: 8px 0; padding: 8px 10px;
+  background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); font-size: 12px;
+}
+.um-current b { font-weight: 700; }
+.um-exit { margin-left: auto; border: none; background: var(--warn); color: #fff; border-radius: 5px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; }
+.um-sec { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute); padding: 8px 10px 4px; }
+.um-opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 7px; padding: 7px 10px; }
+.um-opt:hover { background: var(--surface-2); }
+.um-opt.on { background: var(--brand-50); }
+.um-ini { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--text-soft); }
+.um-opt-main { display: flex; flex-direction: column; line-height: 1.3; }
+.um-opt-main b { font-size: 13px; font-weight: 600; }
+.um-opt-main small { font-size: 11px; color: var(--text-soft); }
+
+/* View navigation */
+.viewnav {
+  display: flex; gap: 2px; padding: 0 28px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.vn-tab {
+  background: transparent; border: none; padding: 13px 16px;
+  font-size: 13.5px; font-weight: 600; color: var(--text-soft);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.vn-tab:hover { color: var(--text); }
+.vn-tab.on { color: var(--brand-700); border-bottom-color: var(--brand-500); }
+
+.head-actions { display: flex; gap: 10px; }
 
 /* Content */
 .content { padding: 24px 28px 40px; max-width: 1500px; width: 100%; margin: 0 auto; }
