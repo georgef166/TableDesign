@@ -11,17 +11,21 @@ const props = defineProps({
   autofocus: { type: Boolean, default: false },
   invalid: { type: Boolean, default: false }
 })
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'clear'])
 
 const query = ref('')
 const open = ref(false)
 const active = ref(0)
+const chosen = ref(false)
 const inputEl = ref(null)
 const results = computed(() => searchSecurities(query.value, 8))
 
 watch(query, () => { active.value = 0; open.value = true })
 
 function onInput(e) {
+  // Editing the text after a selection invalidates it — tell the parent so it can
+  // drop the stale pick and force a fresh choice before submit.
+  if (chosen.value) { chosen.value = false; emit('clear') }
   query.value = e.target.value
 }
 
@@ -29,6 +33,7 @@ function choose(sec) {
   if (!sec) return
   emit('select', sec)
   query.value = `${sec.ticker} · ${sec.name}`
+  chosen.value = true
   open.value = false
 }
 

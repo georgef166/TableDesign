@@ -31,6 +31,14 @@ const errors = ref({})
 // Seed from a prefill (e.g. "Locate from availability").
 if (props.prefill) selectSecurity(props.prefill)
 
+// User edited the lookup text after picking — drop the stale selection so submit
+// re-requires a fresh choice (prevents submitting a ticker the user no longer sees).
+function clearSelection() {
+  picked.value = false
+  form.ticker = ''
+  form.security = ''
+}
+
 function selectSecurity(sec) {
   form.ticker = sec.ticker
   form.security = sec.name || sec.security || ''
@@ -113,7 +121,7 @@ function fmtUsd(n) {
 
         <div class="field">
           <label>Security <span class="req">*</span></label>
-          <SecurityTypeahead :autofocus="!prefill" :invalid="!!errors.security" @select="selectSecurity" />
+          <SecurityTypeahead :autofocus="!prefill" :invalid="!!errors.security" @select="selectSecurity" @clear="clearSelection" />
           <small v-if="errors.security" class="err">{{ errors.security }}</small>
         </div>
 
