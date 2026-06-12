@@ -1,7 +1,13 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import { TYPES } from '../data/locates.js'
+import SecurityTypeahead from './SecurityTypeahead.vue'
 
+// `prefill` lets other views (Availability, Standing Lists) open the modal with a
+// security already chosen, cutting clicks.
+const props = defineProps({
+  prefill: { type: Object, default: null }
+})
 const emit = defineEmits(['close', 'submit'])
 
 const form = reactive({
@@ -10,24 +16,76 @@ const form = reactive({
   sedol: '',
   isin: '',
   cusip: '',
+  ric: '',
+  bbgTicker: '',
   security: '',
-  qtyRequested: null
+  price: null,
+  locateBy: 'SHARES',     // SHARES | MARKET_VALUE
+  qtyRequested: null,
+  marketValue: null
 })
 
+const picked = ref(false)
 const errors = ref({})
+
+// Seed from a prefill (e.g. "Locate from availability").
+if (props.prefill) selectSecurity(props.prefill)
+
+function selectSecurity(sec) {
+  form.ticker = sec.ticker
+  form.security = sec.name || sec.security || ''
+  form.sedol = sec.sedol || ''
+  form.isin = sec.isin || ''
+  form.cusip = sec.cusip || ''
+  form.ric = sec.ric || ''
+  form.bbgTicker = sec.bbgTicker || (sec.ticker ? `${sec.ticker} US` : '')
+  form.price = sec.price ?? null
+  picked.value = true
+  errors.value.security = undefined
+}
+
+// Locate-by-market-value: derive an indicative share count from last price.
+const estShares = computed(() => {
+  if (form.locateBy !== 'MARKET_VALUE' || !form.marketValue || !form.price) return null
+  return Math.round(form.marketValue / form.price)
+})
 
 function validate() {
   const e = {}
-  if (!form.ticker.trim()) e.ticker = 'Required'
-  if (!form.security.trim()) e.security = 'Required'
-  if (!form.qtyRequested || form.qtyRequested <= 0) e.qtyRequested = 'Enter a quantity'
+  if (!picked.value || !form.ticker) e.security = 'Select a security'
+  if (form.locateBy === 'SHARES') {
+    if (!form.qtyRequested || form.qtyRequested <= 0) e.qty = 'Enter a share quantity'
+  } else {
+    if (!form.marketValue || form.marketValue <= 0) e.qty = 'Enter a dollar amount'
+  }
   errors.value = e
   return Object.keys(e).length === 0
 }
 
 function submit() {
   if (!validate()) return
-  emit('submit', { ...form })
+  // Normalise to a qtyRequested the grid can show: for market-value requests use
+  // the estimated shares (or 0 if no price), and carry the dollar amount through.
+  const qty = form.locateBy === 'SHARES'
+    ? form.qtyRequested
+    : (estShares.value || 0)
+  emit('submit', {
+    type: form.type,
+    ticker: form.ticker,
+    security: form.security,
+    sedol: form.sedol,
+    isin: form.isin,
+    cusip: form.cusip,
+    ric: form.ric,
+    bbgTicker: form.bbgTicker,
+    locateBy: form.locateBy,
+    qtyRequested: qty,
+    marketValue: form.locateBy === 'MARKET_VALUE' ? form.marketValue : null
+  })
+}
+
+function fmtUsd(n) {
+  return n != null ? n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }) : ''
 }
 </script>
 
@@ -53,40 +111,47 @@ function submit() {
           </select>
         </div>
 
-        <div class="grid-2">
-          <div class="field">
-            <label>Ticker <span class="req">*</span></label>
-            <input v-model="form.ticker" placeholder="e.g. TSLA" :class="{ invalid: errors.ticker }" />
-            <small v-if="errors.ticker" class="err">{{ errors.ticker }}</small>
-          </div>
-          <div class="field">
-            <label>Qty Requested <span class="req">*</span></label>
-            <input v-model.number="form.qtyRequested" type="number" min="1" placeholder="0"
-                   :class="{ invalid: errors.qtyRequested }" />
-            <small v-if="errors.qtyRequested" class="err">{{ errors.qtyRequested }}</small>
-          </div>
-        </div>
-
         <div class="field">
-          <label>Security Name <span class="req">*</span></label>
-          <input v-model="form.security" placeholder="e.g. TESLA INC AT NASDAQ GS"
-                 :class="{ invalid: errors.security }" />
+          <label>Security <span class="req">*</span></label>
+          <SecurityTypeahead :autofocus="!prefill" :invalid="!!errors.security" @select="selectSecurity" />
           <small v-if="errors.security" class="err">{{ errors.security }}</small>
         </div>
 
-        <div class="grid-3">
-          <div class="field">
-            <label>SEDOL</label>
-            <input v-model="form.sedol" placeholder="7-char" />
+        <!-- Identifiers auto-filled by the lookup (read-only confirmation chips). -->
+        <div v-if="picked" class="id-chips">
+          <span class="chip"><b>ISIN</b> {{ form.isin || '—' }}</span>
+          <span class="chip"><b>SEDOL</b> {{ form.sedol || '—' }}</span>
+          <span class="chip"><b>CUSIP</b> {{ form.cusip || '—' }}</span>
+          <span v-if="form.price" class="chip"><b>Last</b> {{ fmtUsd(form.price) }}</span>
+        </div>
+
+        <div class="field">
+          <label>Locate by</label>
+          <div class="seg" role="radiogroup" aria-label="Locate by">
+            <button type="button" class="seg-btn" :class="{ on: form.locateBy === 'SHARES' }"
+                    :aria-pressed="form.locateBy === 'SHARES'" @click="form.locateBy = 'SHARES'">Shares</button>
+            <button type="button" class="seg-btn" :class="{ on: form.locateBy === 'MARKET_VALUE' }"
+                    :aria-pressed="form.locateBy === 'MARKET_VALUE'" @click="form.locateBy = 'MARKET_VALUE'">Market value</button>
           </div>
-          <div class="field">
-            <label>ISIN</label>
-            <input v-model="form.isin" placeholder="12-char" />
+        </div>
+
+        <div v-if="form.locateBy === 'SHARES'" class="field">
+          <label>Qty Requested <span class="req">*</span></label>
+          <input v-model.number="form.qtyRequested" type="number" min="1" placeholder="0"
+                 :class="{ invalid: errors.qty }" />
+          <small v-if="errors.qty" class="err">{{ errors.qty }}</small>
+        </div>
+
+        <div v-else class="field">
+          <label>Market Value (USD) <span class="req">*</span></label>
+          <div class="usd-wrap">
+            <span class="usd-prefix">$</span>
+            <input v-model.number="form.marketValue" type="number" min="1" step="1000" placeholder="1,000,000"
+                   :class="{ invalid: errors.qty }" />
           </div>
-          <div class="field">
-            <label>CUSIP</label>
-            <input v-model="form.cusip" placeholder="9-char" />
-          </div>
+          <small v-if="errors.qty" class="err">{{ errors.qty }}</small>
+          <small v-else-if="estShares" class="hint">≈ {{ estShares.toLocaleString() }} shares at {{ fmtUsd(form.price) }} last</small>
+          <small v-else-if="form.marketValue && !form.price" class="hint">Estimated shares unavailable — no last price.</small>
         </div>
       </div>
 
@@ -110,7 +175,7 @@ function submit() {
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  overflow: hidden;
+  overflow: visible;
 }
 .modal-head {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -128,8 +193,6 @@ function submit() {
 .icon-btn:hover { background: var(--border); color: var(--text); }
 
 .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12px; font-weight: 600; color: var(--text-soft); }
@@ -150,6 +213,30 @@ function submit() {
 }
 .field input.invalid { border-color: var(--bad); }
 .err { color: var(--bad); font-size: 11px; }
+.hint { color: var(--text-mute); font-size: 11px; }
+
+/* Auto-filled identifier chips */
+.id-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -4px; }
+.chip {
+  font-size: 11.5px; color: var(--text-soft);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 99px; padding: 4px 10px;
+}
+.chip b { color: var(--text-mute); font-weight: 700; margin-right: 5px; letter-spacing: .03em; }
+
+/* Segmented toggle */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; width: fit-content; }
+.seg-btn {
+  border: none; background: var(--surface); color: var(--text-soft);
+  padding: 9px 18px; font-size: 13px; font-weight: 600;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn.on { background: var(--brand-500); color: #fff; }
+
+/* USD input */
+.usd-wrap { position: relative; }
+.usd-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-mute); font-size: 14px; }
+.usd-wrap input { padding-left: 24px; width: 100%; }
 
 .modal-foot {
   display: flex; justify-content: flex-end; gap: 10px;
