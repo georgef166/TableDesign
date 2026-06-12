@@ -70,7 +70,6 @@ function ingest(text) {
 
   const headers = grid[0].map(h => h.trim())
   const mapping = headers.map(h => ({ header: h, field: resolveField(h) }))
-  const hasTicker = mapping.some(m => m.field === 'ticker')
   const hasId = mapping.some(m => ['ticker', 'isin', 'sedol', 'cusip'].includes(m.field))
   if (!hasId) {
     parseError.value = 'No identifier column found. Include at least one of: Ticker, ISIN, SEDOL, CUSIP.'
@@ -81,12 +80,12 @@ function ingest(text) {
   const rows = grid.slice(1).map((cells, idx) => {
     const rec = {}
     mapping.forEach((m, c) => { if (m.field) rec[m.field] = (cells[c] ?? '').trim() })
-    return validateRow(rec, idx, hasTicker)
+    return validateRow(rec, idx)
   })
   parsed.value = { headers, mapping, rows }
 }
 
-function validateRow(rec, idx, hasTickerCol) {
+function validateRow(rec, idx) {
   const errors = []
   // Enrich missing fields from the security master where possible.
   const match = findSecurity(rec)

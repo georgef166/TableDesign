@@ -29,6 +29,7 @@ const summary = computed(() => scheduleSummary(form.schedule))
 function validate() {
   const e = {}
   if (!form.name.trim()) e.name = 'Name your list'
+  if (!form.schedule.time) e.time = 'Set a run time'
   if (!form.items.length) e.items = 'Add at least one security'
   errors.value = e
   return Object.keys(e).length === 0
@@ -70,7 +71,8 @@ function save() {
           </div>
           <div class="field">
             <label>Time</label>
-            <input v-model="form.schedule.time" type="time" />
+            <input v-model="form.schedule.time" type="time" :class="{ invalid: errors.time }" />
+            <small v-if="errors.time" class="err">{{ errors.time }}</small>
           </div>
         </div>
         <p class="sched-note">

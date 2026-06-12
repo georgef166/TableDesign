@@ -4,7 +4,7 @@
 
 export const securities = [
   { ticker: 'TSLA',  name: 'Tesla Inc',                exchange: 'NASDAQ GS', bbgTicker: 'TSLA US',  sedol: 'B616C79', isin: 'US88160R1014', cusip: '88160R101', ric: 'TSLA.OQ',  price: 248.50 },
-  { ticker: 'AAPL',  name: 'Apple Inc',                exchange: 'NASDAQ GS', bbgTicker: 'AAPL US',  sedol: '2588173', isin: 'US0378331005', cusip: '037833100', ric: 'AAPL.OQ',  price: 212.20 },
+  { ticker: 'AAPL',  name: 'Apple Inc',                exchange: 'NASDAQ GS', bbgTicker: 'AAPL US',  sedol: '2046252', isin: 'US0378331005', cusip: '037833100', ric: 'AAPL.OQ',  price: 212.20 },
   { ticker: 'MSFT',  name: 'Microsoft Corp',           exchange: 'NASDAQ GS', bbgTicker: 'MSFT US',  sedol: '2588173', isin: 'US5949181045', cusip: '594918104', ric: 'MSFT.OQ',  price: 462.90 },
   { ticker: 'AMZN',  name: 'Amazon.com Inc',           exchange: 'NASDAQ GS', bbgTicker: 'AMZN US',  sedol: '2046251', isin: 'US0231351067', cusip: '023135106', ric: 'AMZN.OQ',  price: 198.40 },
   { ticker: 'META',  name: 'Meta Platforms Inc',       exchange: 'NASDAQ GS', bbgTicker: 'META US',  sedol: '2886907', isin: 'US30303M1027', cusip: '30303M102', ric: 'META.OQ',  price: 712.10 },
