@@ -20,7 +20,6 @@ const identifiers = computed(() => [
 
 const request = computed(() => [
   { label: 'Request Date', value: r.value.requestDate },
-  { label: 'Type', value: r.value.type },
   { label: 'Batch ID', value: r.value.batchId },
   { label: 'Locate ID', value: r.value.locateId }
 ])
