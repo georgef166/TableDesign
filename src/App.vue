@@ -13,13 +13,15 @@ import FileUploadModal from './components/FileUploadModal.vue'
 import StandingLists from './components/StandingLists.vue'
 import AvailabilityView from './components/AvailabilityView.vue'
 import ImpersonationBar from './components/ImpersonationBar.vue'
-import { seedLocates } from './data/locates.js'
+import LocateHistory from './components/LocateHistory.vue'
 import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
 import { useLocalStore } from './composables/useLocalStore.js'
+import { useRequests } from './composables/useRequests.js'
+import { stamp } from './utils/datetime.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
 
 /* ---------- state ---------- */
-const rows = ref([...seedLocates])
+const { rows, addRecords, scopeByFirm } = useRequests()
 const quickFilter = ref('')
 const statusFilter = ref('ALL')
 const showModal = ref(false)
@@ -32,8 +34,9 @@ const toast = ref(null)
 /* ---------- navigation ---------- */
 const VIEWS = [
   { id: 'requests', label: 'Locate Requests' },
-  { id: 'standing', label: 'Standing Lists' },
-  { id: 'availability', label: 'Availability' }
+  { id: 'standing', label: 'Schedule List' },
+  { id: 'availability', label: 'Availability' },
+  { id: 'history', label: 'Locate History' }
 ]
 const activeView = ref('requests')
 
@@ -71,7 +74,6 @@ const toggleableCols = ref([
 const extraColCount = computed(() => toggleableCols.value.filter(c => c.visible).length)
 const gridApi = shallowRef(null)
 const lastRefreshed = ref('2026-06-09 16:22:21')
-let nextId = seedLocates.length + 1
 
 /* ---------- columns ----------
  * Two tiers: a compact, flex-sized SCAN set shown by default (fills the width,
@@ -92,7 +94,6 @@ const columnDefs = ref([
       'status-warn': p => p.value === 'PENDING',
       'status-bad': p => p.value === 'REJECTED'
     } },
-  { headerName: 'Type', field: 'type', flex: 0.8, minWidth: 110, cellClass: 'type-cell' },
   { headerName: 'Security', field: 'security', flex: 1.8, minWidth: 220,
     cellRenderer: markRaw(SecurityCell),
     cellRendererParams: (p) => ({ params: p }),
@@ -124,10 +125,9 @@ const defaultColDef = {
 
 /* ---------- derived ---------- */
 // When impersonating a client, the grid + counts are scoped to that client's
-// requests so support sees exactly what the client sees.
-const scopedRows = computed(() =>
-  impersonating.value ? rows.value.filter(r => r.requester === impersonating.value.id) : rows.value
-)
+// COMPANY — so two colleagues at the same firm see exactly the same locates.
+// The admin (not impersonating) sees every firm.
+const scopedRows = computed(() => scopeByFirm(rows.value, impersonating.value))
 
 const filteredRows = computed(() => {
   if (statusFilter.value === 'ALL') return scopedRows.value
@@ -181,44 +181,19 @@ function refresh() {
   showToast('Grid refreshed', 'info')
 }
 
-// Build a PENDING locate record from a partial form (shared by the single-request
-// modal, the bulk uploader and standing-list runs). Stamps the requester to the
-// effective user so impersonated/own requests filter correctly.
-function buildRecord(form) {
-  const id = nextId++
-  return {
-    id,
-    requestDate: stamp(),
-    type: form.type || 'WEBSERVICE',
-    batchId: 608262 + id,
-    locateId: 93995504 + id,
-    status: 'PENDING',
-    sedol: form.sedol || '',
-    isin: form.isin || '',
-    ric: form.ric || '',
-    cusip: form.cusip || '',
-    ticker: form.ticker,
-    bbgTicker: form.bbgTicker || (form.ticker ? `${form.ticker} US` : ''),
-    security: form.security,
-    qtyRequested: form.qtyRequested || 0,
-    qtyApproved: 0,
-    requester: effectiveUser.value.id,
-    locateBy: form.locateBy || 'SHARES',
-    marketValue: form.marketValue ?? null
-  }
-}
-
-function handleNewRequest(form) {
-  rows.value = [buildRecord(form), ...rows.value]
+// New records are stamped to the effective (possibly impersonated) user so they
+// land in the right company pool. buildRecord/addRecords live in useRequests.
+// The modal is a basket, so `forms` is an array of one or more locates.
+function handleNewRequest(forms) {
+  const built = addRecords(forms, effectiveUser.value.id)
   showModal.value = false
   prefillSecurity.value = null
   activeView.value = 'requests'
-  showToast(`Successfully created locate · ${form.ticker}`, 'ok')
+  showToast(`Created ${built.length} locate${built.length === 1 ? '' : 's'}`, 'ok')
 }
 
 function handleBulkUpload(records) {
-  const built = records.map(buildRecord)
-  rows.value = [...built, ...rows.value]
+  const built = addRecords(records, effectiveUser.value.id)
   showUpload.value = false
   activeView.value = 'requests'
   showToast(`Imported ${built.length} locate${built.length === 1 ? '' : 's'}`, 'ok')
@@ -226,11 +201,10 @@ function handleBulkUpload(records) {
 
 // "Run now" on a standing list — inject each item as a PENDING request.
 function runStandingList(list) {
-  const built = list.items.map(it => buildRecord({
+  const built = addRecords(list.items.map(it => ({
     type: 'BULK', ticker: it.ticker, security: it.security, isin: it.isin,
     locateBy: it.locateBy, qtyRequested: it.qtyRequested, marketValue: it.marketValue
-  }))
-  rows.value = [...built, ...rows.value]
+  })), effectiveUser.value.id)
   activeView.value = 'requests'
   showToast(`Ran “${list.name}” · ${built.length} locate${built.length === 1 ? '' : 's'} submitted`, 'ok')
 }
@@ -239,13 +213,6 @@ function runStandingList(list) {
 function locateFromAvailability(security) {
   prefillSecurity.value = security
   showModal.value = true
-}
-
-function stamp() {
-  // deterministic-ish display stamp for the mock environment
-  const d = new Date()
-  const p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 let toastTimer
@@ -314,13 +281,13 @@ function showToast(msg, kind = 'ok') {
       <div class="page-head">
         <div>
           <h1>Locate Requests</h1>
-          <p>Review, filter and submit security locate requests to the desk.</p>
+          <p>Two ways to add locates: <b>upload a file</b> of one or more, or <b>enter one manually</b>.</p>
         </div>
         <div class="head-actions">
           <button class="btn ghost lg" @click="showUpload = true">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" /></svg>
-            Upload
+            File Upload (1 or more)
           </button>
           <button class="btn primary lg" @click="showModal = true">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -435,6 +402,10 @@ function showToast(msg, kind = 'ok') {
 
       <!-- Availability view -->
       <AvailabilityView v-else-if="activeView === 'availability'" @locate="locateFromAvailability" />
+
+      <!-- Locate History view (read-only, company-scoped archive) -->
+      <LocateHistory v-else-if="activeView === 'history'" :viewedUser="impersonating"
+                     @select="selectedRecord = $event" />
     </main>
 
     <!-- Modal -->
