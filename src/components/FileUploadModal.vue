@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { findSecurity } from '../data/securities.js'
+import { readFileToGrid, gridToRecords, FIELD_LABELS } from '../composables/useFileImport.js'
 
 // Bulk file uploader. Core FY26 requirement: read the columns in ANY order as long
-// as the header is present. We match each header to a known field by a normalised
-// name, so column position is irrelevant. A preview step shows the detected
-// mapping + per-row validation before anything is submitted.
+// as the header is present (XLS/XLSX or CSV). The parse + header-mapping pipeline
+// lives in useFileImport.js so the Schedule List modal can reuse it. A preview
+// step shows the detected mapping + per-row validation before anything is submitted.
 const emit = defineEmits(['close', 'submit'])
 
 const dragging = ref(false)
@@ -13,118 +13,24 @@ const fileName = ref('')
 const parsed = ref(null)   // { headers, mapping, rows }
 const parseError = ref('')
 
-// Canonical fields → the header aliases that map onto them. Matching is done on a
-// normalised header (lowercased, non-alphanumerics stripped), so "Qty Requested",
-// "qty_requested" and "QTYREQUESTED" all resolve to the same field.
-const FIELD_ALIASES = {
-  ticker:       ['ticker', 'symbol', 'tkr'],
-  security:     ['security', 'securityname', 'name', 'description', 'desc'],
-  sedol:        ['sedol'],
-  isin:         ['isin'],
-  cusip:        ['cusip'],
-  qtyRequested: ['qtyrequested', 'qty', 'quantity', 'shares', 'qtyreq'],
-  marketValue:  ['marketvalue', 'mktvalue', 'notional', 'mv']
-}
-const FIELD_LABELS = {
-  ticker: 'Ticker', security: 'Security', sedol: 'SEDOL', isin: 'ISIN',
-  cusip: 'CUSIP', qtyRequested: 'Qty Requested', marketValue: 'Market Value'
-}
-
-const norm = (s) => (s || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '')
-
-function resolveField(header) {
-  const h = norm(header)
-  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-    if (aliases.includes(h)) return field
-  }
-  return null
-}
-
-// Minimal RFC-4180-ish CSV parser (handles quoted fields + embedded commas).
-function parseCsv(text) {
-  const rows = []
-  let row = [], field = '', inQuotes = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    if (inQuotes) {
-      if (c === '"' && text[i + 1] === '"') { field += '"'; i++ }
-      else if (c === '"') inQuotes = false
-      else field += c
-    } else if (c === '"') inQuotes = true
-    else if (c === ',') { row.push(field); field = '' }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++
-      row.push(field); field = ''
-      if (row.some(v => v.trim() !== '')) rows.push(row)
-      row = []
-    } else field += c
-  }
-  if (field !== '' || row.length) { row.push(field); if (row.some(v => v.trim() !== '')) rows.push(row) }
-  return rows
-}
-
-function ingest(text) {
-  parseError.value = ''
-  const grid = parseCsv(text)
-  if (grid.length < 2) { parseError.value = 'File has no data rows.'; parsed.value = null; return }
-
-  const headers = grid[0].map(h => h.trim())
-  const mapping = headers.map(h => ({ header: h, field: resolveField(h) }))
-  const hasId = mapping.some(m => ['ticker', 'isin', 'sedol', 'cusip'].includes(m.field))
-  if (!hasId) {
-    parseError.value = 'No identifier column found. Include at least one of: Ticker, ISIN, SEDOL, CUSIP.'
-    parsed.value = null
-    return
-  }
-
-  const rows = grid.slice(1).map((cells, idx) => {
-    const rec = {}
-    mapping.forEach((m, c) => { if (m.field) rec[m.field] = (cells[c] ?? '').trim() })
-    return validateRow(rec, idx)
-  })
-  parsed.value = { headers, mapping, rows }
-}
-
-function validateRow(rec, idx) {
-  const errors = []
-  // Enrich missing fields from the security master where possible.
-  const match = findSecurity(rec)
-  if (match) {
-    rec.ticker = rec.ticker || match.ticker
-    rec.security = rec.security || match.name
-    rec.isin = rec.isin || match.isin
-    rec.sedol = rec.sedol || match.sedol
-    rec.cusip = rec.cusip || match.cusip
-  }
-  if (!rec.ticker && !rec.isin && !rec.sedol && !rec.cusip) errors.push('No identifier')
-  const qty = Number(rec.qtyRequested)
-  const mv = Number(rec.marketValue)
-  if (!(qty > 0) && !(mv > 0)) errors.push('Missing qty / market value')
-  return {
-    line: idx + 2, // 1-based incl. header row
-    ticker: rec.ticker || '',
-    security: rec.security || (match ? match.name : ''),
-    isin: rec.isin || '', sedol: rec.sedol || '', cusip: rec.cusip || '',
-    qtyRequested: qty > 0 ? qty : null,
-    marketValue: mv > 0 ? mv : null,
-    locateBy: qty > 0 ? 'SHARES' : (mv > 0 ? 'MARKET_VALUE' : 'SHARES'),
-    bbgTicker: match?.bbgTicker || (rec.ticker ? `${rec.ticker} US` : ''),
-    ric: match?.ric || '',
-    errors
-  }
-}
-
 const mappedFields = computed(() => parsed.value?.mapping.filter(m => m.field) || [])
 const unmappedHeaders = computed(() => parsed.value?.mapping.filter(m => !m.field).map(m => m.header) || [])
 const validRows = computed(() => parsed.value?.rows.filter(r => r.errors.length === 0) || [])
 const invalidCount = computed(() => (parsed.value?.rows.length || 0) - validRows.value.length)
 
-function onFile(file) {
+async function onFile(file) {
   if (!file) return
   fileName.value = file.name
-  const reader = new FileReader()
-  reader.onload = () => ingest(String(reader.result))
-  reader.readAsText(file)
+  parseError.value = ''
+  try {
+    const grid = await readFileToGrid(file)
+    const result = gridToRecords(grid)
+    if (result.error) { parseError.value = result.error; parsed.value = null; return }
+    parsed.value = result
+  } catch {
+    parseError.value = 'Could not read that file. Please upload a valid XLS or CSV.'
+    parsed.value = null
+  }
 }
 function onInputChange(e) { onFile(e.target.files?.[0]) }
 function onDrop(e) { dragging.value = false; onFile(e.dataTransfer.files?.[0]) }
@@ -147,8 +53,8 @@ function submit() {
     <div class="modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
-          <h2>Bulk Upload Locates</h2>
-          <p>Drop a CSV — columns are matched by header name, in any order.</p>
+          <h2>File Upload (1 or more)</h2>
+          <p>Drop an XLS or CSV — columns are matched by header name, in any order.</p>
         </div>
         <button class="icon-btn" @click="emit('close')" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -164,7 +70,7 @@ function submit() {
                stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" />
           </svg>
-          <p class="dz-main">Drag a CSV here, or <label class="dz-link">browse<input type="file" accept=".csv,text/csv" @change="onInputChange" hidden /></label></p>
+          <p class="dz-main">Drag an XLS or CSV here, or <label class="dz-link">browse<input type="file" accept=".csv,.xls,.xlsx,text/csv" @change="onInputChange" hidden /></label></p>
           <p class="dz-sub">Headers can be in any order. Recognised: Ticker, Security, ISIN, SEDOL, CUSIP, Qty Requested, Market Value.</p>
           <p v-if="parseError" class="dz-err">{{ parseError }}</p>
         </div>
