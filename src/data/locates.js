@@ -82,5 +82,26 @@ export const seedLocates = [
     status: 'PENDING', sedol: 'B4TX8S1', isin: 'US64110L1061', ric: 'NFLX.OQ', cusip: '64110L106',
     ticker: 'NFLX', bbgTicker: 'NFLX US', security: 'NETFLIX INC AT NASDAQ GS', qtyRequested: 150, qtyApproved: 0,
     requester: 'jdoe', locateBy: 'SHARES', marketValue: null
+  },
+
+  // Marcus Wong (mwong) shares Jane Doe's firm (Meridian Capital) — these prove a
+  // shared, multi-user company pool: impersonating either user shows the same set.
+  {
+    id: 13, requestDate: '2026-06-08 09:41:12', type: 'MANUAL', batchId: 608170, locateId: 93995361,
+    status: 'APPROVED', sedol: '2046252', isin: 'US0378331005', ric: 'AAPL.OQ', cusip: '037833100',
+    ticker: 'AAPL', bbgTicker: 'AAPL US', security: 'APPLE INC AT NASDAQ GS', qtyRequested: 5000, qtyApproved: 5000,
+    requester: 'mwong', locateBy: 'SHARES', marketValue: null
+  },
+  {
+    id: 14, requestDate: '2026-06-06 14:18:47', type: 'MANUAL', batchId: 608061, locateId: 93995102,
+    status: 'PENDING', sedol: 'BYVY8G0', isin: 'US67066G1040', ric: 'NVDA.OQ', cusip: '67066G104',
+    ticker: 'NVDA', bbgTicker: 'NVDA US', security: 'NVIDIA CORP AT NASDAQ GS', qtyRequested: 7200, qtyApproved: 0,
+    requester: 'mwong', locateBy: 'MARKET_VALUE', marketValue: 1000000
+  },
+  {
+    id: 15, requestDate: '2026-06-05 11:55:30', type: 'BULK', batchId: 607980, locateId: 93994870,
+    status: 'REJECTED', sedol: 'B2PZN04', isin: 'US92826C8394', ric: 'V.N', cusip: '92826C839',
+    ticker: 'V', bbgTicker: 'V US', security: 'VISA INC CL A AT NYSE', qtyRequested: 1200, qtyApproved: 0,
+    requester: 'mwong', locateBy: 'SHARES', marketValue: null
   }
 ]
