@@ -31,10 +31,13 @@ function onInput(e) {
 
 function choose(sec) {
   if (!sec) return
-  emit('select', sec)
+  // Set the confirmation text FIRST, then emit. The parent may respond to `select`
+  // by calling reset() (multi-add flows) — emitting last lets that reset win, so
+  // the box clears instead of being re-stuffed with "TICKER · Name".
   query.value = `${sec.ticker} · ${sec.name}`
   chosen.value = true
   open.value = false
+  emit('select', sec)
 }
 
 function onKeydown(e) {
@@ -48,8 +51,17 @@ function onKeydown(e) {
 function focus() {
   nextTick(() => inputEl.value?.focus())
 }
+// Clear the input + selection so the parent can drive a fresh search — used by
+// multi-add flows (Schedule List) after each pick. NOT called by single-select
+// (New Request) which keeps the "TICKER · Name" confirmation in the box.
+function reset() {
+  query.value = ''
+  chosen.value = false
+  open.value = false
+  active.value = 0
+}
 if (props.autofocus) focus()
-defineExpose({ focus })
+defineExpose({ focus, reset })
 
 function fmtPrice(p) {
   return p != null ? p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
