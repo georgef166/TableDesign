@@ -2,14 +2,13 @@
 // schedule (the FY26 "create & save a standing list & schedule it" ask). These
 // seed the localStorage store on first load; the user's edits persist thereafter.
 
+import { stampShort as fmt } from '../utils/datetime.js'
+
 export const FREQUENCIES = [
   { value: 'DAILY',    label: 'Daily' },
   { value: 'WEEKDAYS', label: 'Weekdays' },
   { value: 'WEEKLY',   label: 'Weekly (Mon)' }
 ]
-
-const pad = (n) => String(n).padStart(2, '0')
-const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 export function scheduleSummary(schedule) {
   if (!schedule) return '—'
