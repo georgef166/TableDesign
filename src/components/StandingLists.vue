@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useLocalStore } from '../composables/useLocalStore.js'
 import { seedStandingLists, scheduleSummary, nextRun } from '../data/standingLists.js'
+import { stampShort } from '../utils/datetime.js'
 import StandingListModal from './StandingListModal.vue'
 
 // Standing Lists view. Lists persist to localStorage (mock — the real scheduler is
@@ -33,12 +34,7 @@ function toggle(list) { list.enabled = !list.enabled }
 
 function runNow(list) {
   emit('run', list)
-  list.lastRun = stamp()
-}
-
-function stamp() {
-  const d = new Date(), p = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  list.lastRun = stampShort()
 }
 </script>
 
@@ -46,13 +42,13 @@ function stamp() {
   <div>
     <div class="page-head">
       <div>
-        <h1>Standing Lists</h1>
+        <h1>Schedule List</h1>
         <p>Save reusable baskets and schedule them to submit automatically.</p>
       </div>
       <button class="btn primary lg" @click="openNew">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-        New Standing List
+        New Schedule List
       </button>
     </div>
 
@@ -61,7 +57,7 @@ function stamp() {
       Scheduling runs as a local mock for now — automatic submission is wired up with the future webservice. Use <b>Run now</b> to preview a run.
     </p>
 
-    <div v-if="!lists.length" class="empty">No standing lists yet. Create one to get started.</div>
+    <div v-if="!lists.length" class="empty">No schedule lists yet. Create one to get started.</div>
 
     <div v-else class="cards">
       <article v-for="list in lists" :key="list.id" class="card" :class="{ off: !list.enabled }">
@@ -116,11 +112,11 @@ function stamp() {
 
 .empty { padding: 48px; text-align: center; color: var(--text-mute); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 16px; min-height: 220px; }
 .card.off { opacity: .72; }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-.card-top h3 { margin: 0 0 4px; font-size: 15px; }
+.card-top h3 { margin: 0 0 4px; font-size: 17px; }
 .meta { font-size: 12px; color: var(--text-soft); }
 
 .tickers { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { FREQUENCIES, nextRun, scheduleSummary } from '../data/standingLists.js'
+import { readFileToGrid, gridToRecords } from '../composables/useFileImport.js'
 import SecurityTypeahead from './SecurityTypeahead.vue'
 
 // Create or edit a standing list: a named, reusable basket of securities plus a
@@ -13,14 +14,55 @@ const form = reactive(props.list
   : { id: null, name: '', owner: 'gf', enabled: true, schedule: { frequency: 'WEEKDAYS', time: '08:00' }, lastRun: null, items: [] })
 
 const errors = ref({})
+const taRef = ref(null)
+const uploadNote = ref('')
 
-function addSecurity(sec) {
-  if (form.items.some(i => i.ticker === sec.ticker)) return
+// Core add — dedupes by ticker. Accepts either a typeahead security ({name}) or
+// a parsed file row ({security, qtyRequested, marketValue, locateBy}).
+function addItem(o) {
+  if (!o.ticker || form.items.some(i => i.ticker === o.ticker)) return false
   form.items.push({
-    ticker: sec.ticker, security: sec.name || '', isin: sec.isin || '',
-    locateBy: 'SHARES', qtyRequested: null, marketValue: null
+    ticker: o.ticker,
+    security: o.name || o.security || '',
+    isin: o.isin || '',
+    locateBy: o.locateBy || 'SHARES',
+    qtyRequested: o.qtyRequested ?? null,
+    marketValue: o.marketValue ?? null
   })
+  return true
 }
+
+// From the typeahead: add, then clear the input so the user can immediately
+// search and add the next security (fixes the "search breaks after select" bug).
+function addSecurity(sec) {
+  addItem(sec)
+  errors.value.items = undefined
+  taRef.value?.reset()
+  taRef.value?.focus()
+}
+
+// Add many securities from an XLS/CSV — reuses the bulk-upload parse pipeline.
+async function onUploadFile(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''            // allow re-uploading the same file
+  if (!file) return
+  uploadNote.value = ''
+  try {
+    const grid = await readFileToGrid(file)
+    const { error, rows } = gridToRecords(grid)
+    if (error) { uploadNote.value = error; return }
+    const valid = rows.filter(r => r.errors.length === 0)
+    let added = 0
+    for (const r of valid) if (addItem(r)) added++
+    errors.value.items = undefined
+    const dupes = valid.length - added
+    uploadNote.value = `Added ${added} securit${added === 1 ? 'y' : 'ies'}` +
+      (dupes ? ` · ${dupes} already in list` : '')
+  } catch {
+    uploadNote.value = 'Could not read that file. Please upload a valid XLS or CSV.'
+  }
+}
+
 function removeItem(idx) { form.items.splice(idx, 1) }
 
 const preview = computed(() => nextRun(form.schedule))
@@ -46,7 +88,7 @@ function save() {
     <div class="modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
-          <h2>{{ form.id ? 'Edit Standing List' : 'New Standing List' }}</h2>
+          <h2>{{ form.id ? 'Edit Schedule List' : 'New Schedule List' }}</h2>
           <p>Save a reusable basket and schedule it to run automatically.</p>
         </div>
         <button class="icon-btn" @click="emit('close')" aria-label="Close">
@@ -82,7 +124,16 @@ function save() {
 
         <div class="field">
           <label>Add securities <span class="req">*</span></label>
-          <SecurityTypeahead placeholder="Search to add a security…" @select="addSecurity" />
+          <SecurityTypeahead ref="taRef" placeholder="Search to add a security…" @select="addSecurity" />
+          <div class="add-row">
+            <label class="upload-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" /></svg>
+              Upload securities from a file (XLS or CSV)
+              <input type="file" accept=".csv,.xls,.xlsx,text/csv" @change="onUploadFile" hidden />
+            </label>
+            <span v-if="uploadNote" class="upload-note">{{ uploadNote }}</span>
+          </div>
           <small v-if="errors.items" class="err">{{ errors.items }}</small>
         </div>
 
@@ -135,6 +186,12 @@ function save() {
 .field input:focus, .field select:focus { border-color: var(--brand-500); background: var(--surface); }
 .field input.invalid { border-color: var(--bad); }
 .err { color: var(--bad); font-size: 11px; }
+
+.add-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 2px; }
+.upload-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--brand-700); cursor: pointer; }
+.upload-link svg { width: 14px; height: 14px; }
+.upload-link:hover { text-decoration: underline; }
+.upload-note { font-size: 11.5px; color: var(--text-soft); }
 
 .sched-note { margin: -6px 0 0; font-size: 12.5px; color: var(--text-soft); }
 .sched-note b { color: var(--text); }
