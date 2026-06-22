@@ -179,7 +179,7 @@ function fmtUsd(n) {
 .modal-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-soft); }
 .icon-btn {
   border: none; background: var(--surface-2); color: var(--text-soft);
-  width: 30px; height: 30px; border-radius: 8px;
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
   display: grid; place-items: center;
 }
 .icon-btn svg { width: 14px; height: 14px; }
@@ -204,7 +204,7 @@ function fmtUsd(n) {
 .it-head { display: flex; align-items: baseline; gap: 10px; }
 .it-tkr { font-weight: 700; font-size: 13.5px; }
 .it-name { flex: 1; font-size: 12px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.it-del { border: none; background: transparent; color: var(--text-mute); width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+.it-del { border: none; background: transparent; color: var(--text-mute); width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; flex: none; }
 .it-del:hover { background: var(--bad-bg); color: var(--bad); }
 .it-del svg { width: 13px; height: 13px; }
 .it-controls { display: flex; gap: 8px; margin-top: 10px; }

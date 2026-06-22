@@ -130,7 +130,7 @@ function fmtPrice(p) {
 }
 .ta-opt {
   display: grid; grid-template-columns: 62px 1fr auto auto; align-items: baseline; gap: 10px;
-  padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer;
 }
 .ta-opt.active { background: var(--brand-50); }
 .o-ticker { font-weight: 700; font-size: 13px; color: var(--text); }

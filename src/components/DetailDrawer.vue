@@ -103,7 +103,7 @@ const request = computed(() => [
 .d-ticker { font-size: 19px; font-weight: 700; }
 .icon-btn {
   border: none; background: var(--surface-2); color: var(--text-soft);
-  width: 30px; height: 30px; border-radius: 8px;
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
   display: grid; place-items: center;
 }
 .icon-btn svg { width: 14px; height: 14px; }

@@ -154,7 +154,7 @@ function submit() {
 .modal-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-soft); }
 .icon-btn {
   border: none; background: var(--surface-2); color: var(--text-soft);
-  width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center;
 }
 .icon-btn svg { width: 14px; height: 14px; }
 .icon-btn:hover { background: var(--border); color: var(--text); }

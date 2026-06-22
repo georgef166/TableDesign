@@ -128,7 +128,7 @@ function download() {
         :rowData="historyRows"
         :defaultColDef="defaultColDef"
         :rowHeight="58"
-        :headerHeight="44"
+        :headerHeight="46"
         :pagination="true"
         :paginationPageSize="10"
         :paginationPageSizeSelector="[10, 25, 50]"
@@ -169,19 +169,19 @@ function download() {
 
 .count { margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft); }
 
-.grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .grid { width: 100%; height: 560px;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
-  --ag-header-foreground-color: var(--text-soft);
-  --ag-header-background-color: var(--surface-2);
-  --ag-odd-row-background-color: #fbfcfe;
+  --ag-header-foreground-color: var(--text);
+  --ag-header-background-color: #e7edf6;
+  --ag-odd-row-background-color: #f4f7fb;
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
-  --ag-border-color: var(--border-2);
+  --ag-border-color: var(--border);
   --ag-cell-horizontal-padding: 14px;
   --ag-borders: none;
-  --ag-row-border-color: var(--border-2);
+  --ag-row-border-color: var(--border);
 }
 </style>

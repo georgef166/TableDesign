@@ -384,7 +384,7 @@ function showToast(msg, kind = 'ok') {
           :rowData="filteredRows"
           :defaultColDef="defaultColDef"
           :rowHeight="58"
-          :headerHeight="44"
+          :headerHeight="46"
           :pagination="true"
           :paginationPageSize="10"
           :paginationPageSizeSelector="[10, 25, 50]"
@@ -482,9 +482,9 @@ function showToast(msg, kind = 'ok') {
   background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-sm); font-size: 12px;
 }
 .um-current b { font-weight: 700; }
-.um-exit { margin-left: auto; border: none; background: var(--warn); color: #fff; border-radius: 5px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; }
+.um-exit { margin-left: auto; border: none; background: var(--warn); color: #fff; border-radius: var(--radius-sm); padding: 3px 10px; font-size: 11.5px; font-weight: 600; }
 .um-sec { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute); padding: 8px 10px 4px; }
-.um-opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: none; border-radius: 7px; padding: 7px 10px; }
+.um-opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: none; border-radius: var(--radius-sm); padding: 7px 10px; }
 .um-opt:hover { background: var(--surface-2); }
 .um-opt.on { background: var(--brand-50); }
 .um-ini { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--text-soft); }
@@ -604,7 +604,7 @@ function showToast(msg, kind = 'ok') {
 }
 .col-opt {
   display: flex; align-items: center; gap: 9px;
-  padding: 7px 8px; border-radius: 7px; font-size: 13px; cursor: pointer;
+  padding: 7px 8px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer;
 }
 .col-opt:hover { background: var(--surface-2); }
 .col-opt input { width: 15px; height: 15px; accent-color: var(--brand-500); cursor: pointer; }
@@ -618,28 +618,34 @@ function showToast(msg, kind = 'ok') {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
+  /* Lift the white table off the tinted page background so it reads as a
+     distinct surface, not floating numbers. */
+  box-shadow: var(--shadow);
 }
 .grid { width: 100%; height: 560px;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
-  --ag-header-foreground-color: var(--text-soft);
-  --ag-header-background-color: var(--surface-2);
-  --ag-odd-row-background-color: #fbfcfe;
+  /* Darker text on a distinctly tinted band so the header reads as a header. */
+  --ag-header-foreground-color: var(--text);
+  --ag-header-background-color: #e7edf6;
+  /* Stronger zebra + row borders to help the eye track a row across to the
+     right-hand quantity columns. */
+  --ag-odd-row-background-color: #f4f7fb;
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
-  --ag-border-color: var(--border-2);
+  --ag-border-color: var(--border);
   --ag-header-column-resize-handle-color: var(--border);
   --ag-cell-horizontal-padding: 14px;
   --ag-borders: none;
-  --ag-row-border-color: var(--border-2);
+  --ag-row-border-color: var(--border);
 }
 
 /* Toast */
 .toast {
   position: fixed; right: 24px; bottom: 24px;
   display: flex; align-items: center; gap: 10px;
-  padding: 13px 18px; border-radius: 12px;
+  padding: 13px 18px; border-radius: var(--radius);
   background: var(--surface); color: var(--text);
   box-shadow: var(--shadow); font-size: 13px; font-weight: 500;
   border: 1px solid var(--border); z-index: 60;
@@ -675,6 +681,17 @@ function showToast(msg, kind = 'ok') {
 .status-ok   { color: var(--ok);   font-weight: 700; }
 .status-warn { color: var(--warn); font-weight: 700; }
 .status-bad  { color: var(--bad);  font-weight: 700; }
-.ag-theme-quartz .ag-header-cell-text { font-weight: 600; letter-spacing: .01em; }
+/* Quartz rounds its own .ag-root-wrapper (8px), which mismatches the .grid-wrap
+   container radius (4px) and shows a notch at the top corners. Flatten the inner
+   wrapper so .grid-wrap (overflow:hidden + --radius) owns the single rounding. */
+.ag-theme-quartz .ag-root-wrapper { border: none; border-radius: 0; }
+.ag-theme-quartz .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
+/* A firm 2px rule under the header band so it clearly separates from the rows. */
+.ag-theme-quartz .ag-header { border-bottom: 2px solid var(--border); }
+/* Faint vertical guides between header columns to anchor the right-hand numbers. */
+.ag-theme-quartz .ag-header-cell:not(:last-child)::after {
+  content: ''; position: absolute; right: 0; top: 25%; height: 50%;
+  width: 1px; background: var(--border);
+}
 .ag-theme-quartz .ag-row { cursor: pointer; }
 </style>

@@ -169,7 +169,7 @@ function save() {
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 22px 24px 16px; border-bottom: 1px solid var(--border); }
 .modal-head h2 { margin: 0; font-size: 17px; }
 .modal-head p { margin: 4px 0 0; font-size: 13px; color: var(--text-soft); }
-.icon-btn { border: none; background: var(--surface-2); color: var(--text-soft); width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
+.icon-btn { border: none; background: var(--surface-2); color: var(--text-soft); width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center; }
 .icon-btn svg { width: 14px; height: 14px; }
 .icon-btn:hover { background: var(--border); color: var(--text); }
 
@@ -208,7 +208,7 @@ function save() {
 .it-tkr { font-weight: 700; font-size: 13px; }
 .it-name { font-size: 12px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .it-by, .it-qty { font-family: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
-.it-del { border: none; background: transparent; color: var(--text-mute); width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; }
+.it-del { border: none; background: transparent; color: var(--text-mute); width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; }
 .it-del:hover { background: var(--bad-bg); color: var(--bad); }
 .it-del svg { width: 13px; height: 13px; }
 

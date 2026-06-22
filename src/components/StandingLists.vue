@@ -120,7 +120,7 @@ function runNow(list) {
 .meta { font-size: 12px; color: var(--text-soft); }
 
 .tickers { display: flex; flex-wrap: wrap; gap: 6px; }
-.tk { font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--text-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; }
+.tk { font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--text-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px 8px; }
 
 .runs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
 .runs dt { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute); }
