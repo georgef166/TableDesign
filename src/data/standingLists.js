@@ -1,6 +1,6 @@
 // Seed standing lists — a saved, reusable set of securities the desk can run on a
 // schedule (the FY26 "create & save a standing list & schedule it" ask). These
-// seed the localStorage store on first load; the user's edits persist thereafter.
+// seed the sessionStorage store on first load; the user's edits persist for the tab.
 
 import { stampShort as fmt } from '../utils/datetime.js'
 

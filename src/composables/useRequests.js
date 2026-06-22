@@ -2,17 +2,18 @@
 // and the Locate History tab. The store is module-level (a singleton) so both
 // views and the create/import handlers mutate the same reactive array.
 //
-// Persistence: backed by localStorage so created/imported locates survive a
-// reload — the FY26 "same company sees the same stuff" expectation for the mock.
-// NOTE: useLocalStore only writes the seed when the key is ABSENT, so the key is
-// versioned — bump the suffix whenever `seedLocates` changes, or returning
-// testers will keep their stale `talp-locate:*` data.
-import { useLocalStore } from './useLocalStore.js'
+// Persistence: backed by sessionStorage so created/imported locates survive a
+// reload within the tab but reset when the tab/session closes — the FY26 "same
+// company sees the same stuff" expectation for the mock, without leaving stale
+// data across sessions. NOTE: useSessionStore only writes the seed when the key
+// is ABSENT, so the key is versioned — bump the suffix whenever `seedLocates`
+// changes, or testers reusing a tab will keep their stale `talp-locate:*` data.
+import { useSessionStore } from './useSessionStore.js'
 import { seedLocates } from '../data/locates.js'
 import { firmOf } from '../data/users.js'
 import { stamp } from '../utils/datetime.js'
 
-const rows = useLocalStore('locate-requests-v2', [], seedLocates)
+const rows = useSessionStore('locate-requests-v2', [], seedLocates)
 
 // IDs continue past the highest persisted record so reloads don't collide.
 let nextId = Math.max(0, ...rows.value.map(r => r.id || 0)) + 1

@@ -1,16 +1,17 @@
 <script setup>
 import { ref } from 'vue'
-import { useLocalStore } from '../composables/useLocalStore.js'
+import { useSessionStore } from '../composables/useSessionStore.js'
 import { seedStandingLists, scheduleSummary, nextRun } from '../data/standingLists.js'
 import { stampShort } from '../utils/datetime.js'
 import StandingListModal from './StandingListModal.vue'
 
-// Standing Lists view. Lists persist to localStorage (mock — the real scheduler is
-// a future webservice). "Run now" injects the list's securities into the live grid
-// to demonstrate the schedule firing end-to-end.
+// Standing Lists view. Lists persist to sessionStorage (mock — the real scheduler
+// is a future webservice), so edits survive reloads in the tab and reset when it
+// closes. "Run now" injects the list's securities into the live grid to demonstrate
+// the schedule firing end-to-end.
 const emit = defineEmits(['run'])
 
-const lists = useLocalStore('standing-lists', [], seedStandingLists)
+const lists = useSessionStore('standing-lists', [], seedStandingLists)
 const showModal = ref(false)
 const editing = ref(null)
 let seq = Date.now()

@@ -15,7 +15,7 @@ import AvailabilityView from './components/AvailabilityView.vue'
 import ImpersonationBar from './components/ImpersonationBar.vue'
 import LocateHistory from './components/LocateHistory.vue'
 import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
-import { useLocalStore } from './composables/useLocalStore.js'
+import { useSessionStore } from './composables/useSessionStore.js'
 import { useRequests } from './composables/useRequests.js'
 import { stamp } from './utils/datetime.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
@@ -42,7 +42,7 @@ const activeView = ref('requests')
 
 /* ---------- user / impersonation ---------- */
 const realUser = ADMIN_USER
-const impersonatingId = useLocalStore('impersonating-user-id', null)
+const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
 const effectiveUser = computed(() => impersonating.value || realUser)
 const showUserMenu = ref(false)
