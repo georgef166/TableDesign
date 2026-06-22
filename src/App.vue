@@ -34,7 +34,7 @@ const toast = ref(null)
 /* ---------- navigation ---------- */
 const VIEWS = [
   { id: 'requests', label: 'Locate Requests' },
-  { id: 'standing', label: 'Schedule List' },
+  { id: 'standing', label: 'Standing List' },
   { id: 'availability', label: 'Availability' },
   { id: 'history', label: 'Locate History' }
 ]
