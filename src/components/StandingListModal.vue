@@ -137,7 +137,10 @@ function save() {
           <small v-if="errors.items" class="err">{{ errors.items }}</small>
         </div>
 
-        <div v-if="form.items.length" class="items">
+        <div class="items">
+          <!-- Reserve rows up front (see .items min-height) so the modal opens at
+               the three-security height and doesn't jump as rows are added. -->
+          <div v-if="!form.items.length" class="items-empty">Added securities appear here.</div>
           <div v-for="(it, idx) in form.items" :key="it.ticker" class="item">
             <span class="it-tkr">{{ it.ticker }}</span>
             <span class="it-name">{{ it.security }}</span>
@@ -200,7 +203,18 @@ function save() {
   color: var(--warn); background: var(--warn-bg); border-radius: 99px; padding: 2px 8px;
 }
 
-.items { display: flex; flex-direction: column; gap: 8px; }
+/* Reserve ~3 item rows (3 × ~47px + 2 × 8px gap) so the modal opens at the
+   same height as the three-security state and doesn't jump as the first rows
+   are added. */
+.items { display: flex; flex-direction: column; gap: 8px; min-height: 157px; }
+/* Empty placeholder fills the whole reserved area. */
+.items-empty {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 8px 10px;
+  background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-mute);
+}
 .item {
   display: grid; grid-template-columns: 54px 1fr 110px 110px 30px; align-items: center; gap: 10px;
   padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
