@@ -6,6 +6,7 @@ import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 import StatusBadge from './components/StatusBadge.vue'
 import StatusIcon from './components/StatusIcon.vue'
+import AnimatedNumber from './components/AnimatedNumber.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
 import FileUploadModal from './components/FileUploadModal.vue'
@@ -308,22 +309,22 @@ function showToast(msg, kind = 'ok') {
       <div class="stats" role="group" aria-label="Filter requests by status">
         <button class="stat" :class="{ active: statusFilter === 'ALL' }"
                 :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
-          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num">{{ counts.ALL }}</span></span>
+          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.ALL" /></span></span>
           <span class="stat-lbl">All Requests</span>
         </button>
         <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
                 :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
-          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num">{{ counts.APPROVED }}</span></span>
+          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.APPROVED" /></span></span>
           <span class="stat-lbl">Approved</span>
         </button>
         <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
                 :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
-          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num">{{ counts.PENDING }}</span></span>
+          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.PENDING" /></span></span>
           <span class="stat-lbl">Pending</span>
         </button>
         <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
                 :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
-          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num">{{ counts.REJECTED }}</span></span>
+          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.REJECTED" /></span></span>
           <span class="stat-lbl">Rejected</span>
         </button>
       </div>
