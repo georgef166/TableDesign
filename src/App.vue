@@ -26,6 +26,8 @@ const statusFilter = ref('ALL')
 const showModal = ref(false)
 const showUpload = ref(false)
 const prefillSecurity = ref(null)
+// True when the request modal is opened from Availability (locked to one security).
+const singleLocate = ref(false)
 const selectedRecord = ref(null)
 const showColumns = ref(false)
 const toast = ref(null)
@@ -190,6 +192,7 @@ function handleNewRequest(forms) {
   const built = addRecords(forms, effectiveUser.value.id)
   showModal.value = false
   prefillSecurity.value = null
+  singleLocate.value = false
   activeView.value = 'requests'
   showToast(`Created ${built.length} locate${built.length === 1 ? '' : 's'}`, 'ok')
 }
@@ -211,9 +214,11 @@ function runStandingList(list) {
   showToast(`Ran “${list.name}” · ${built.length} locate${built.length === 1 ? '' : 's'} submitted`, 'ok')
 }
 
-// "Locate" from the Availability view — open the request modal prefilled.
+// "Locate" from the Availability view — open the request modal LOCKED to that one
+// security (no add/remove, capped at the available quantity).
 function locateFromAvailability(security) {
   prefillSecurity.value = security
+  singleLocate.value = true
   showModal.value = true
 }
 
@@ -291,7 +296,7 @@ function showToast(msg, kind = 'ok') {
                  stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" /></svg>
             File Upload (1 or more)
           </button>
-          <button class="btn primary lg" @click="showModal = true">
+          <button class="btn primary lg" @click="singleLocate = false; prefillSecurity = null; showModal = true">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                  stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14" /></svg>
             New Locate Request
@@ -411,8 +416,8 @@ function showToast(msg, kind = 'ok') {
     </main>
 
     <!-- Modal -->
-    <NewRequestModal v-if="showModal" :prefill="prefillSecurity"
-                     @close="showModal = false; prefillSecurity = null" @submit="handleNewRequest" />
+    <NewRequestModal v-if="showModal" :prefill="prefillSecurity" :single="singleLocate"
+                     @close="showModal = false; prefillSecurity = null; singleLocate = false" @submit="handleNewRequest" />
 
     <!-- Bulk upload -->
     <FileUploadModal v-if="showUpload" @close="showUpload = false" @submit="handleBulkUpload" />

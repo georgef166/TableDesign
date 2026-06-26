@@ -8,7 +8,11 @@ import SecurityTypeahead from './SecurityTypeahead.vue'
 // locate-by + quantity. `prefill` (from Availability / Standing Lists) seeds the
 // first row.
 const props = defineProps({
-  prefill: { type: Object, default: null }
+  prefill: { type: Object, default: null },
+  // Locked single-security mode (used by Availability "Locate"): no add-securities
+  // typeahead and the one prefilled security can't be removed. Either method
+  // (Shares or Market value) is allowed, capped at the available amount.
+  single: { type: Boolean, default: false }
 })
 const emit = defineEmits(['close', 'submit'])
 
@@ -31,7 +35,9 @@ function addItem(sec) {
     price: sec.price ?? null,
     locateBy: sec.locateBy || 'SHARES',
     qtyRequested: sec.qtyRequested ?? null,
-    marketValue: sec.marketValue ?? null
+    marketValue: sec.marketValue ?? null,
+    // Available-qty cap (single/locked mode only); null = uncapped.
+    availableQty: sec.availableQty ?? null
   })
   errors.value.items = undefined
 }
@@ -57,8 +63,27 @@ function estShares(it) {
 
 function validate() {
   const e = {}
-  if (!items.length) { e.items = 'Add at least one security' }
-  else if (items.some(it => it.locateBy === 'SHARES'
+  if (!items.length) {
+    e.items = 'Add at least one security'
+  } else if (props.single) {
+    // Locked to one security, but either method is allowed — capped at the
+    // available amount (shares directly, or via the market-value→shares estimate).
+    const it = items[0]
+    if (it.locateBy === 'SHARES') {
+      if (!(it.qtyRequested > 0)) e.items = 'Enter a quantity to locate'
+      else if (it.availableQty != null && it.qtyRequested > it.availableQty) {
+        e.items = `You can locate at most ${it.availableQty.toLocaleString()} shares (the available amount)`
+      }
+    } else {
+      if (!(it.marketValue > 0)) e.items = 'Enter a market value to locate'
+      else {
+        const sh = estShares(it)
+        if (sh != null && it.availableQty != null && sh > it.availableQty) {
+          e.items = `That market value is ≈ ${sh.toLocaleString()} shares, above the ${it.availableQty.toLocaleString()} available`
+        }
+      }
+    }
+  } else if (items.some(it => it.locateBy === 'SHARES'
     ? !(it.qtyRequested > 0)
     : !(it.marketValue > 0))) {
     e.items = 'Every security needs a quantity or market value'
@@ -95,8 +120,9 @@ function fmtUsd(n) {
     <div class="modal" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
-          <h2>New Locate Request</h2>
-          <p>Add one or more securities, then submit them to the desk for approval.</p>
+          <h2>{{ single ? 'Locate Security' : 'New Locate Request' }}</h2>
+          <p v-if="single">Request a locate for this security, up to the available amount.</p>
+          <p v-else>Add one or more securities, then submit them to the desk for approval.</p>
         </div>
         <button class="icon-btn" @click="emit('close')" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -105,11 +131,12 @@ function fmtUsd(n) {
       </header>
 
       <div class="modal-body">
-        <div class="field">
+        <!-- Add-securities search is hidden in locked single-security mode. -->
+        <div v-if="!single" class="field">
           <label>Add securities <span class="req">*</span></label>
           <SecurityTypeahead ref="taRef" :autofocus="!prefill" :invalid="!!errors.items" @select="onSelect" />
-          <small v-if="errors.items" class="err">{{ errors.items }}</small>
         </div>
+        <small v-if="errors.items" class="err">{{ errors.items }}</small>
 
         <div v-if="!items.length" class="empty-hint">
           Search above to add one or more securities to this request.
@@ -121,7 +148,7 @@ function fmtUsd(n) {
               <div class="it-head">
                 <span class="it-tkr">{{ it.ticker }}</span>
                 <span class="it-name" :title="it.security">{{ it.security }}</span>
-                <button class="it-del" @click="removeItem(idx)" aria-label="Remove security">
+                <button v-if="!single" class="it-del" @click="removeItem(idx)" aria-label="Remove security">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                        stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
@@ -132,14 +159,18 @@ function fmtUsd(n) {
                   <option value="MARKET_VALUE">Market value</option>
                 </select>
                 <input v-if="it.locateBy === 'SHARES'" v-model.number="it.qtyRequested"
-                       type="number" min="1" placeholder="Qty" class="it-qty" aria-label="Quantity" />
+                       type="number" min="1" :max="single ? it.availableQty : undefined"
+                       placeholder="Qty" class="it-qty" aria-label="Quantity" />
                 <div v-else class="usd-wrap">
                   <span class="usd-prefix">$</span>
                   <input v-model.number="it.marketValue" type="number" min="1" step="1000"
                          placeholder="1,000,000" class="it-qty usd" aria-label="Market value (USD)" />
                 </div>
               </div>
-              <small v-if="estShares(it)" class="hint">≈ {{ estShares(it).toLocaleString() }} shares at {{ fmtUsd(it.price) }} last</small>
+              <small v-if="single && it.availableQty != null" class="hint">
+                Max available: {{ it.availableQty.toLocaleString() }} shares<template v-if="it.locateBy === 'MARKET_VALUE' && estShares(it)"> · requesting ≈ {{ estShares(it).toLocaleString() }}</template>
+              </small>
+              <small v-else-if="estShares(it)" class="hint">≈ {{ estShares(it).toLocaleString() }} shares at {{ fmtUsd(it.price) }} last</small>
               <small v-else-if="it.locateBy === 'MARKET_VALUE' && it.marketValue && !it.price" class="hint">Estimated shares unavailable — no last price.</small>
             </div>
           </div>
@@ -149,7 +180,7 @@ function fmtUsd(n) {
       <footer class="modal-foot">
         <button class="btn ghost" @click="emit('close')">Cancel</button>
         <button class="btn primary" :disabled="!count" @click="submit">
-          Submit {{ count || '' }} locate{{ count === 1 ? '' : 's' }}
+          {{ single ? 'Submit locate' : `Submit ${count || ''} locate${count === 1 ? '' : 's'}` }}
         </button>
       </footer>
     </div>
