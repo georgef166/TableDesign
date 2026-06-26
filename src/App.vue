@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw, watchEffect } from 'vue'
+import { ref, computed, shallowRef, markRaw } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
@@ -16,6 +16,7 @@ import ImpersonationBar from './components/ImpersonationBar.vue'
 import LocateHistory from './components/LocateHistory.vue'
 import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
 import { useSessionStore } from './composables/useSessionStore.js'
+import { useTheme } from './composables/useTheme.js'
 import { useRequests } from './composables/useRequests.js'
 import { stamp } from './utils/datetime.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
@@ -46,10 +47,7 @@ const activeView = ref('requests')
 const realUser = ADMIN_USER
 
 /* ---------- theme ---------- */
-const theme = useSessionStore('theme', 'light')
-// Reflect the theme on <html> (the dark palette is keyed off data-theme="dark").
-watchEffect(() => document.documentElement.setAttribute('data-theme', theme.value))
-function toggleTheme() { theme.value = theme.value === 'dark' ? 'light' : 'dark' }
+const { theme, isDark, toggle: toggleTheme } = useTheme()
 
 const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
@@ -400,7 +398,7 @@ function showToast(msg, kind = 'ok') {
       </p>
 
       <!-- Grid -->
-      <div class="grid-wrap ag-theme-quartz">
+      <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
         <AgGridVue
           class="grid"
           :columnDefs="columnDefs"
@@ -720,14 +718,16 @@ function showToast(msg, kind = 'ok') {
 /* Quartz rounds its own .ag-root-wrapper (8px), which mismatches the .grid-wrap
    container radius (4px) and shows a notch at the top corners. Flatten the inner
    wrapper so .grid-wrap (overflow:hidden + --radius) owns the single rounding. */
-.ag-theme-quartz .ag-root-wrapper { border: none; border-radius: 0; }
-.ag-theme-quartz .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
+/* Selectors target BOTH the light and dark Quartz themes so these customisations
+   hold in either mode. */
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper { border: none; border-radius: 0; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
 /* A firm 2px rule under the header band so it clearly separates from the rows. */
-.ag-theme-quartz .ag-header { border-bottom: 2px solid var(--border); }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header { border-bottom: 2px solid var(--border); }
 /* Faint vertical guides between header columns to anchor the right-hand numbers. */
-.ag-theme-quartz .ag-header-cell:not(:last-child)::after {
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell:not(:last-child)::after {
   content: ''; position: absolute; right: 0; top: 25%; height: 50%;
   width: 1px; background: var(--border);
 }
-.ag-theme-quartz .ag-row { cursor: pointer; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { cursor: pointer; }
 </style>

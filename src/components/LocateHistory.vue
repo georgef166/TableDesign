@@ -5,6 +5,7 @@ import StatusBadge from './StatusBadge.vue'
 import StatusIcon from './StatusIcon.vue'
 import AnimatedNumber from './AnimatedNumber.vue'
 import { useRequests } from '../composables/useRequests.js'
+import { useTheme } from '../composables/useTheme.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stampShort } from '../utils/datetime.js'
 
@@ -23,6 +24,7 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const { rows, scopeByFirm } = useRequests()
+const { isDark } = useTheme()
 
 const today = stampShort().slice(0, 10)
 const quickFilter = ref('')
@@ -254,7 +256,7 @@ function download() {
 
     <p class="count">{{ historyRows.length }} request{{ historyRows.length === 1 ? '' : 's' }}</p>
 
-    <div class="grid-wrap ag-theme-quartz">
+    <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
       <AgGridVue
         class="grid"
         :columnDefs="columnDefs"

@@ -69,6 +69,9 @@
   --shadow-lg: 0 20px 60px rgba(0,0,0,.55);
 }
 
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background-color: #3a4654; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: #4a586a; }
+
 * { box-sizing: border-box; }
 
 html, body, #app {

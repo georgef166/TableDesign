@@ -159,7 +159,7 @@ function tooltipLeftPct(px) { return (px / W) * 100 }
 
 .chart-wrap { position: relative; }
 .chart { width: 100%; height: 200px; display: block; overflow: visible; }
-.tip { position: absolute; top: -2px; transform: translateX(-50%); background: var(--text); color: #fff; border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11.5px; white-space: nowrap; pointer-events: none; display: flex; gap: 6px; align-items: baseline; }
+.tip { position: absolute; top: -2px; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11.5px; white-space: nowrap; pointer-events: none; display: flex; gap: 6px; align-items: baseline; }
 .tip b { font-weight: 700; }
 .tip span { opacity: .7; }
 
