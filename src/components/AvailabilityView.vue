@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { generateSnapshot } from '../data/availabilitySnapshot.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stamp } from '../utils/datetime.js'
@@ -29,6 +29,17 @@ function refresh() {
   asOf.value = stamp()
   page.value = 0
 }
+
+// "Live" mode — opt-in auto-refresh every 8s to simulate the streaming feed.
+// Off by default (respects the user / avoids surprise motion); cleaned up on leave.
+const live = ref(false)
+let liveTimer = null
+function toggleLive() {
+  live.value = !live.value
+  if (live.value) liveTimer = setInterval(refresh, 8000)
+  else { clearInterval(liveTimer); liveTimer = null }
+}
+onBeforeUnmount(() => clearInterval(liveTimer))
 
 // --- pagination (volume effect for the demo) ---
 const pageSize = ref(15)
@@ -93,6 +104,11 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
       <div class="head-actions">
         <span class="asof">As of <b>{{ asOf }}</b> · {{ rows.length }} securities</span>
+        <button class="btn ghost lg" :class="{ live }" @click="toggleLive"
+                :title="live ? 'Stop live updates' : 'Auto-refresh every 8s'">
+          <span class="live-dot" :class="{ on: live }"></span>
+          {{ live ? 'Live' : 'Go live' }}
+        </button>
         <button class="btn ghost lg" :class="{ on: showInsights }" @click="showInsights = !showInsights">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
@@ -206,6 +222,15 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .btn { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 12.5px; font-weight: 600; background: var(--surface); color: var(--text-soft); display: inline-flex; align-items: center; gap: 6px; transition: background .12s, border-color .12s, color .12s; }
 .btn:hover { background: var(--brand-50); border-color: var(--brand-500); color: var(--brand-700); }
 .btn.on { border-color: var(--brand-500); color: var(--brand-700); }
+.btn.live { border-color: var(--ok); color: var(--ok); }
+.btn.live:hover { background: transparent; border-color: var(--ok); color: var(--ok); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-mute); flex: none; }
+.live-dot.on { background: var(--ok); animation: livepulse 1.6s ease-out infinite; }
+@keyframes livepulse {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, .55); }
+  70%  { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
 .btn.lg { padding: 9px 16px; font-size: 13px; }
 .btn .ic { width: 15px; height: 15px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; background: var(--surface); border-color: var(--border); color: var(--text-mute); }
