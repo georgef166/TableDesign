@@ -7,6 +7,7 @@ import 'ag-grid-community/styles/ag-theme-quartz.css'
 import StatusBadge from './components/StatusBadge.vue'
 import StatusIcon from './components/StatusIcon.vue'
 import AnimatedNumber from './components/AnimatedNumber.vue'
+import RequestsInsights from './components/RequestsInsights.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
 import FileUploadModal from './components/FileUploadModal.vue'
@@ -32,6 +33,7 @@ const prefillSecurity = ref(null)
 const singleLocate = ref(false)
 const selectedRecord = ref(null)
 const showColumns = ref(false)
+const showInsights = ref(true)
 const toast = ref(null)
 
 /* ---------- navigation ---------- */
@@ -342,6 +344,9 @@ function showToast(msg, kind = 'ok') {
         </button>
       </div>
 
+      <!-- Insights dashboard (collapsible) -->
+      <RequestsInsights v-if="showInsights" :rows="scopedRows" />
+
       <!-- Toolbar -->
       <div class="toolbar">
         <div class="search">
@@ -357,6 +362,11 @@ function showToast(msg, kind = 'ok') {
                  placeholder="Search ticker, SEDOL, ISIN, security…" />
         </div>
         <div class="toolbar-actions">
+          <button class="btn ghost" :class="{ open: showInsights }" @click="showInsights = !showInsights">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
+            Insights
+          </button>
           <div class="col-chooser">
             <button class="btn ghost" :class="{ open: showColumns }" @click="showColumns = !showColumns">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
