@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import { generateSnapshot } from '../data/availabilitySnapshot.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stamp } from '../utils/datetime.js'
+import Sparkline from './Sparkline.vue'
+import AvailabilityTrend from './AvailabilityTrend.vue'
+import { useWatchlist } from '../composables/useWatchlist.js'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
 // webservice, so this simulates an hourly fetch: a SINGLE current-hour snapshot,
@@ -20,7 +23,27 @@ const snapshot = ref(generateSnapshot())
 // there's no point listing it.
 const rows = computed(() => snapshot.value.filter(r => r.availableQty > 0))
 
-// Manual re-pull of the feed — re-stamps "as of" to the current moment.
+// --- watchlist (star to pin to top; optional watchlist-only filter) ---
+const { toggle: toggleStar, isStarred, count: starCount } = useWatchlist()
+const watchlistOnly = ref(false)
+function toggleWatchlistOnly() { watchlistOnly.value = !watchlistOnly.value; page.value = 0 }
+
+// --- search (same lookup as the other pages: ticker / SEDOL / ISIN / security) ---
+const query = ref('')
+function onSearch(e) { query.value = e.target.value; page.value = 0 }
+
+// Display set: watchlist filter → text search → starred names pinned top.
+const displayRows = computed(() => {
+  let list = rows.value
+  if (watchlistOnly.value) list = list.filter(r => isStarred(r.ticker))
+  const q = query.value.trim().toLowerCase()
+  if (q) list = list.filter(r =>
+    [r.ticker, r.security, r.sedol, r.isin, r.country].some(v => (v || '').toString().toLowerCase().includes(q)))
+  return [...list].sort((a, b) => (isStarred(b.ticker) ? 1 : 0) - (isStarred(a.ticker) ? 1 : 0))
+})
+
+// Manual re-pull of the feed (an explicit call to the server) — re-stamps "as of"
+// to the current moment.
 function refresh() {
   snapshot.value = generateSnapshot()
   asOf.value = stamp()
@@ -30,14 +53,29 @@ function refresh() {
 // --- pagination (volume effect for the demo) ---
 const pageSize = ref(15)
 const page = ref(0)
-const pageCount = computed(() => Math.max(1, Math.ceil(rows.value.length / pageSize.value)))
+const pageCount = computed(() => Math.max(1, Math.ceil(displayRows.value.length / pageSize.value)))
 const pageRows = computed(() => {
   const start = page.value * pageSize.value
-  return rows.value.slice(start, start + pageSize.value)
+  return displayRows.value.slice(start, start + pageSize.value)
 })
 function setPageSize(e) { pageSize.value = Number(e.target.value); page.value = 0 }
 function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
+
+
+// Clicking a row (anywhere but the Locate button) opens the trend drawer.
+const selected = ref(null)
+function openTrend(row) { selected.value = row }
+// Locate from the drawer: fire the request, then close the drawer so the modal
+// (which sits below the drawer's scrim) is immediately reachable.
+function locateFromTrend() { const r = selected.value; selected.value = null; locate(r) }
+
+// Trend line colour by direction over the window (brand red would make every line
+// red, since the brand IS red) — green if the rate rose, red if it fell.
+function trendColor(series) {
+  if (!series || series.length < 2) return 'var(--text-mute)'
+  return series[series.length - 1] >= series[0] ? 'var(--ok)' : 'var(--bad)'
+}
 
 function locate(row) {
   // Open the request modal LOCKED to this single security: carry its identifiers,
@@ -74,6 +112,12 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
       <div class="head-actions">
         <span class="asof">As of <b>{{ asOf }}</b> · {{ rows.length }} securities</span>
+        <button class="btn ghost lg" :class="{ on: watchlistOnly }" @click="toggleWatchlistOnly"
+                :title="watchlistOnly ? 'Show all securities' : 'Show only my watchlist'">
+          <svg class="ic" viewBox="0 0 24 24" :fill="watchlistOnly ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
+          Watchlist<span v-if="starCount" class="wl-count">{{ starCount }}</span>
+        </button>
         <button class="btn ghost lg" @click="refresh">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
@@ -87,29 +131,55 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
     </div>
 
-    <p class="mock-banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.5" /></svg>
-      Sample data — simulating an hourly inventory fetch. The live availability feed is wired in with the future webservice.
-    </p>
+    <!-- Search (same lookup as the other pages) -->
+    <div class="toolbar">
+      <div class="search">
+        <span class="search-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+        </span>
+        <input :value="query" @input="onSearch"
+               aria-label="Search availability by ticker, SEDOL, ISIN, country or security"
+               placeholder="Search ticker, SEDOL, ISIN, security…" />
+      </div>
+    </div>
 
     <div class="tbl-wrap">
       <table class="tbl">
         <thead>
           <tr>
+            <th class="star-col"></th>
             <th>Ticker</th><th>SEDOL</th><th>Security</th><th>Country</th>
-            <th class="num">Available</th><th class="num">Rate</th><th></th>
+            <th class="num">Available</th><th class="num">Rate</th><th>Rate trend (24h)</th><th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in pageRows" :key="r.ticker">
+          <tr v-for="r in pageRows" :key="r.ticker" class="row" @click="openTrend(r)" :title="`View ${r.ticker} trend`">
+            <td class="star-col">
+              <button class="star-btn" :class="{ on: isStarred(r.ticker) }" @click.stop="toggleStar(r.ticker)"
+                      :aria-pressed="isStarred(r.ticker)" :title="isStarred(r.ticker) ? 'Remove from watchlist' : 'Add to watchlist'">
+                <svg viewBox="0 0 24 24" :fill="isStarred(r.ticker) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
+              </button>
+            </td>
             <td class="tkr">{{ r.ticker }}</td>
             <td class="mono">{{ r.sedol || '—' }}</td>
             <td class="name">{{ r.security }}</td>
             <td class="country">{{ r.country }}</td>
             <td class="num mono">{{ r.availableQty.toLocaleString() }}</td>
             <td class="num mono" :class="{ htb: r.rate >= 10 }">{{ fmtRate(r.rate) }}</td>
+            <td class="spark-cell">
+              <Sparkline :data="r.rateTrend" :color="trendColor(r.rateTrend)" />
+            </td>
             <td class="act">
-              <button class="btn ghost sm" @click="locate(r)">Locate</button>
+              <button class="btn ghost sm" @click.stop="locate(r)">Locate</button>
+            </td>
+          </tr>
+          <tr v-if="!pageRows.length">
+            <td class="empty-row" colspan="9">
+              <template v-if="query.trim()">No securities match “{{ query }}”.</template>
+              <template v-else-if="watchlistOnly">No securities in your watchlist yet — tap the ☆ on any row.</template>
+              <template v-else>No securities available.</template>
             </td>
           </tr>
         </tbody>
@@ -132,6 +202,10 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
         <button class="btn ghost sm" :disabled="page >= pageCount - 1" @click="next">Next</button>
       </div>
     </div>
+
+    <!-- Trend drawer (interactive rate + availability chart for the clicked row) -->
+    <AvailabilityTrend v-if="selected" :row="selected" :as-of="asOf"
+                       @close="selected = null" @locate="locateFromTrend" />
   </div>
 </template>
 
@@ -144,12 +218,16 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .asof { font-size: 12.5px; color: var(--text-soft); white-space: nowrap; }
 .asof b { color: var(--text); font-weight: 600; }
 
-.mock-banner {
-  display: flex; align-items: center; gap: 9px; margin: 0 0 18px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--warn-bg); color: var(--warn); font-size: 12.5px;
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.search { position: relative; flex: 1; max-width: 420px; min-width: 240px; }
+.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-mute); display: grid; place-items: center; }
+.search-ico svg { width: 16px; height: 16px; }
+.search input {
+  width: 100%; font-family: inherit; font-size: 13px; padding: 10px 12px 10px 34px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); outline: none; transition: border-color .12s;
 }
-.mock-banner svg { width: 16px; height: 16px; flex: none; }
+.search input:focus { border-color: var(--brand-500); }
 
 .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -161,15 +239,25 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .tbl td { padding: 11px 16px; border-bottom: 1px solid var(--border-2); }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr:hover td { background: var(--brand-50); }
+.row { cursor: pointer; }
+.star-col { width: 34px; text-align: center; padding-left: 10px; padding-right: 0; }
+.star-btn { border: none; background: transparent; padding: 2px; display: grid; place-items: center; color: var(--text-mute); transition: color .12s, transform .1s; }
+.star-btn svg { width: 16px; height: 16px; }
+.star-btn:hover { color: #e0a500; transform: scale(1.12); }
+.star-btn.on { color: #f0b500; }
+.empty-row { text-align: center; padding: 28px; color: var(--text-mute); font-size: 13px; }
 .tkr { font-weight: 700; }
 .name { color: var(--text-soft); }
 .country { color: var(--text-soft); font-size: 12.5px; }
+.spark-cell { width: 110px; padding-top: 6px; padding-bottom: 6px; }
 .mono { font-family: var(--mono); font-size: 12.5px; }
 .htb { color: var(--bad); font-weight: 700; }
 .act { text-align: right; }
 
 .btn { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 12.5px; font-weight: 600; background: var(--surface); color: var(--text-soft); display: inline-flex; align-items: center; gap: 6px; transition: background .12s, border-color .12s, color .12s; }
 .btn:hover { background: var(--brand-50); border-color: var(--brand-500); color: var(--brand-700); }
+.btn.on { border-color: var(--brand-500); color: var(--brand-700); }
+.wl-count { background: var(--brand-500); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
 .btn.lg { padding: 9px 16px; font-size: 13px; }
 .btn .ic { width: 15px; height: 15px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; background: var(--surface); border-color: var(--border); color: var(--text-mute); }

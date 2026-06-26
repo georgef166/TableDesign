@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw } from 'vue'
+import { ref, computed, shallowRef, markRaw, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 import StatusBadge from './components/StatusBadge.vue'
 import StatusIcon from './components/StatusIcon.vue'
+import AnimatedNumber from './components/AnimatedNumber.vue'
+import RequestsInsights from './components/RequestsInsights.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
 import FileUploadModal from './components/FileUploadModal.vue'
@@ -15,6 +17,8 @@ import ImpersonationBar from './components/ImpersonationBar.vue'
 import LocateHistory from './components/LocateHistory.vue'
 import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
 import { useSessionStore } from './composables/useSessionStore.js'
+import { useTheme } from './composables/useTheme.js'
+import { useDensity } from './composables/useDensity.js'
 import { useRequests } from './composables/useRequests.js'
 import { stamp } from './utils/datetime.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
@@ -30,6 +34,7 @@ const prefillSecurity = ref(null)
 const singleLocate = ref(false)
 const selectedRecord = ref(null)
 const showColumns = ref(false)
+const showInsights = ref(false)
 const toast = ref(null)
 
 /* ---------- navigation ---------- */
@@ -43,6 +48,13 @@ const activeView = ref('requests')
 
 /* ---------- user / impersonation ---------- */
 const realUser = ADMIN_USER
+
+/* ---------- theme / density ---------- */
+const { theme, isDark, toggle: toggleTheme } = useTheme()
+const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
+// Re-flow the grid when density changes so existing rows pick up the new height.
+watch(rowHeight, () => gridApi.value?.resetRowHeights())
+
 const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
 const effectiveUser = computed(() => impersonating.value || realUser)
@@ -244,6 +256,14 @@ function showToast(msg, kind = 'ok') {
       </div>
       <div class="topbar-right">
         <span class="refreshed">Refreshed at <b>{{ lastRefreshed }}</b></span>
+        <button class="theme-toggle" @click="toggleTheme"
+                :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+          <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+        </button>
         <div class="user-menu">
           <button class="avatar" :class="{ imp: impersonating }"
                   @click="showUserMenu = !showUserMenu"
@@ -283,7 +303,7 @@ function showToast(msg, kind = 'ok') {
     </nav>
 
     <main class="content">
-     <section v-if="activeView === 'requests'">
+     <section v-if="activeView === 'requests'" class="view-grid">
       <!-- Page heading + primary action -->
       <div class="page-head">
         <div>
@@ -308,25 +328,28 @@ function showToast(msg, kind = 'ok') {
       <div class="stats" role="group" aria-label="Filter requests by status">
         <button class="stat" :class="{ active: statusFilter === 'ALL' }"
                 :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
-          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num">{{ counts.ALL }}</span></span>
+          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.ALL" /></span></span>
           <span class="stat-lbl">All Requests</span>
         </button>
         <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
                 :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
-          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num">{{ counts.APPROVED }}</span></span>
+          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.APPROVED" /></span></span>
           <span class="stat-lbl">Approved</span>
         </button>
         <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
                 :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
-          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num">{{ counts.PENDING }}</span></span>
+          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.PENDING" /></span></span>
           <span class="stat-lbl">Pending</span>
         </button>
         <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
                 :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
-          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num">{{ counts.REJECTED }}</span></span>
+          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.REJECTED" /></span></span>
           <span class="stat-lbl">Rejected</span>
         </button>
       </div>
+
+      <!-- Insights dashboard (collapsible) -->
+      <RequestsInsights v-if="showInsights" :rows="scopedRows" />
 
       <!-- Toolbar -->
       <div class="toolbar">
@@ -343,6 +366,17 @@ function showToast(msg, kind = 'ok') {
                  placeholder="Search ticker, SEDOL, ISIN, security…" />
         </div>
         <div class="toolbar-actions">
+          <button class="btn ghost" :class="{ open: showInsights }" @click="showInsights = !showInsights">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
+            Insights
+          </button>
+          <button class="btn ghost" :class="{ open: isCompact }" @click="toggleDensity"
+                  :title="isCompact ? 'Switch to comfortable rows' : 'Switch to compact rows'">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+            {{ isCompact ? 'Compact' : 'Comfortable' }}
+          </button>
           <div class="col-chooser">
             <button class="btn ghost" :class="{ open: showColumns }" @click="showColumns = !showColumns">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -384,35 +418,37 @@ function showToast(msg, kind = 'ok') {
       </p>
 
       <!-- Grid -->
-      <div class="grid-wrap ag-theme-quartz">
-        <AgGridVue
-          class="grid"
-          :columnDefs="columnDefs"
-          :rowData="filteredRows"
-          :defaultColDef="defaultColDef"
-          :rowHeight="58"
-          :headerHeight="46"
-          :pagination="true"
-          :paginationPageSize="10"
-          :paginationPageSizeSelector="[10, 25, 50]"
-          :alwaysShowVerticalScroll="true"
-          :animateRows="true"
-          rowSelection="single"
-          @grid-ready="onGridReady"
-          @row-clicked="onRowClicked"
-          @cell-key-down="onCellKeyDown"
-        />
+      <div class="grid-area">
+        <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
+          <AgGridVue
+            class="grid"
+            :columnDefs="columnDefs"
+            :rowData="filteredRows"
+            :defaultColDef="defaultColDef"
+            :rowHeight="rowHeight"
+            :headerHeight="46"
+            :pagination="true"
+            :paginationPageSize="10"
+            :paginationPageSizeSelector="[10, 25, 50]"
+            domLayout="autoHeight"
+            :animateRows="true"
+            rowSelection="single"
+            @grid-ready="onGridReady"
+            @row-clicked="onRowClicked"
+            @cell-key-down="onCellKeyDown"
+          />
+        </div>
       </div>
      </section>
 
       <!-- Standing Lists view -->
-      <StandingLists v-else-if="activeView === 'standing'" @run="runStandingList" />
+      <StandingLists v-else-if="activeView === 'standing'" class="view-scroll" @run="runStandingList" />
 
       <!-- Availability view -->
-      <AvailabilityView v-else-if="activeView === 'availability'" @locate="locateFromAvailability" />
+      <AvailabilityView v-else-if="activeView === 'availability'" class="view-scroll" @locate="locateFromAvailability" />
 
       <!-- Locate History view (read-only, company-scoped archive) -->
-      <LocateHistory v-else-if="activeView === 'history'" :viewedUser="impersonating"
+      <LocateHistory v-else-if="activeView === 'history'" class="view-grid" :viewedUser="impersonating"
                      @select="selectedRecord = $event" />
     </main>
 
@@ -444,7 +480,7 @@ function showToast(msg, kind = 'ok') {
 </template>
 
 <style scoped>
-.app { min-height: 100%; display: flex; flex-direction: column; }
+.app { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Top bar */
 .topbar {
@@ -463,6 +499,13 @@ function showToast(msg, kind = 'ok') {
 .brand-title { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
 .brand-sub { font-size: 11px; color: rgba(255,255,255,.72); }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
+.theme-toggle {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.16); color: #fff;
+  display: grid; place-items: center; transition: background .12s;
+}
+.theme-toggle:hover { background: rgba(255,255,255,.28); }
+.theme-toggle svg { width: 17px; height: 17px; }
 .refreshed { font-size: 12px; color: rgba(255,255,255,.78); }
 .refreshed b { color: #fff; font-weight: 600; }
 .avatar {
@@ -516,7 +559,14 @@ function showToast(msg, kind = 'ok') {
 .head-actions { display: flex; gap: 10px; }
 
 /* Content */
-.content { padding: 24px 28px 40px; max-width: 1500px; width: 100%; margin: 0 auto; }
+.content {
+  padding: 24px 28px 28px; max-width: 1500px; width: 100%; margin: 0 auto;
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+}
+/* Grid views fill the viewport and scroll their rows internally (the page itself
+   doesn't scroll); other views scroll normally. */
+.view-grid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.view-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 16px; }
 .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
@@ -626,6 +676,10 @@ function showToast(msg, kind = 'ok') {
   font-size: 11px; color: var(--text-mute); line-height: 1.4;
 }
 /* Grid */
+/* The grid sizes to its rows (autoHeight → no empty space below them). This area
+   takes the remaining viewport height and scrolls internally when the rows
+   overflow, so the page itself doesn't scroll. */
+.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
 .grid-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -635,16 +689,17 @@ function showToast(msg, kind = 'ok') {
      distinct surface, not floating numbers. */
   box-shadow: var(--shadow);
 }
-.grid { width: 100%; height: 560px;
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
   /* Darker text on a distinctly tinted band so the header reads as a header. */
   --ag-header-foreground-color: var(--text);
-  --ag-header-background-color: #e7edf6;
+  --ag-background-color: var(--surface);
+  --ag-header-background-color: var(--grid-header-bg);
   /* Stronger zebra + row borders to help the eye track a row across to the
      right-hand quantity columns. */
-  --ag-odd-row-background-color: #f4f7fb;
+  --ag-odd-row-background-color: var(--grid-zebra);
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
   --ag-border-color: var(--border);
@@ -696,14 +751,23 @@ function showToast(msg, kind = 'ok') {
 /* Quartz rounds its own .ag-root-wrapper (8px), which mismatches the .grid-wrap
    container radius (4px) and shows a notch at the top corners. Flatten the inner
    wrapper so .grid-wrap (overflow:hidden + --radius) owns the single rounding. */
-.ag-theme-quartz .ag-root-wrapper { border: none; border-radius: 0; }
-.ag-theme-quartz .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
+/* Selectors target BOTH the light and dark Quartz themes so these customisations
+   hold in either mode. */
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper { border: none; border-radius: 0; }
+/* Ease the row-height change on the density toggle so it glides instead of snapping. */
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { transition: height .28s ease, transform .28s ease; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: height .28s ease; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row,
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: none; }
+}
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
 /* A firm 2px rule under the header band so it clearly separates from the rows. */
-.ag-theme-quartz .ag-header { border-bottom: 2px solid var(--border); }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header { border-bottom: 2px solid var(--border); }
 /* Faint vertical guides between header columns to anchor the right-hand numbers. */
-.ag-theme-quartz .ag-header-cell:not(:last-child)::after {
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell:not(:last-child)::after {
   content: ''; position: absolute; right: 0; top: 25%; height: 50%;
   width: 1px; background: var(--border);
 }
-.ag-theme-quartz .ag-row { cursor: pointer; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { cursor: pointer; }
 </style>

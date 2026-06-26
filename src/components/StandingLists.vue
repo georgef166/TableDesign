@@ -66,11 +66,6 @@ function confirmAction() {
       </button>
     </div>
 
-    <p class="mock-banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.5" /></svg>
-      Scheduling runs as a local mock for now — automatic submission is wired up with the future webservice. Use <b>Run now</b> to preview a run.
-    </p>
-
     <div v-if="!lists.length" class="empty">No schedule lists yet. Create one to get started.</div>
 
     <div v-else class="cards">
@@ -125,14 +120,6 @@ function confirmAction() {
 .page-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
 .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
 .page-head p { margin: 5px 0 0; color: var(--text-soft); font-size: 13px; }
-
-.mock-banner {
-  display: flex; align-items: center; gap: 9px; margin: 0 0 18px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--warn-bg); color: var(--warn); font-size: 12.5px;
-}
-.mock-banner svg { width: 16px; height: 16px; flex: none; }
-.mock-banner b { font-weight: 700; }
 
 .empty { padding: 48px; text-align: center; color: var(--text-mute); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 

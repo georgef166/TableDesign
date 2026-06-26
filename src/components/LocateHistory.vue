@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw } from 'vue'
+import { ref, computed, shallowRef, markRaw, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import StatusBadge from './StatusBadge.vue'
 import StatusIcon from './StatusIcon.vue'
+import AnimatedNumber from './AnimatedNumber.vue'
 import { useRequests } from '../composables/useRequests.js'
+import { useTheme } from '../composables/useTheme.js'
+import { useDensity } from '../composables/useDensity.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stampShort } from '../utils/datetime.js'
 
@@ -22,6 +25,9 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const { rows, scopeByFirm } = useRequests()
+const { isDark } = useTheme()
+const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
+watch(rowHeight, () => gridApi.value?.resetRowHeights())
 
 const today = stampShort().slice(0, 10)
 const quickFilter = ref('')
@@ -183,22 +189,22 @@ function download() {
       <div class="stats" role="group" aria-label="Filter history by status">
         <button class="stat" :class="{ active: statusFilter === 'ALL' }"
                 :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
-          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num">{{ counts.ALL }}</span></span>
+          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.ALL" /></span></span>
           <span class="stat-lbl">All Requests</span>
         </button>
         <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
                 :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
-          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num">{{ counts.APPROVED }}</span></span>
+          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.APPROVED" /></span></span>
           <span class="stat-lbl">Approved</span>
         </button>
         <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
                 :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
-          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num">{{ counts.PENDING }}</span></span>
+          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.PENDING" /></span></span>
           <span class="stat-lbl">Pending</span>
         </button>
         <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
                 :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
-          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num">{{ counts.REJECTED }}</span></span>
+          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.REJECTED" /></span></span>
           <span class="stat-lbl">Rejected</span>
         </button>
       </div>
@@ -242,6 +248,12 @@ function download() {
             <p class="col-hint">Toggled columns are also included in the download.</p>
           </div>
         </div>
+        <button class="btn ghost" :class="{ open: isCompact }" @click="toggleDensity"
+                :title="isCompact ? 'Switch to comfortable rows' : 'Switch to compact rows'">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          {{ isCompact ? 'Compact' : 'Comfortable' }}
+        </button>
         <button class="btn ghost" @click="clearAll">Clear</button>
         <button class="btn ghost" @click="refreshHistory">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -253,23 +265,26 @@ function download() {
 
     <p class="count">{{ historyRows.length }} request{{ historyRows.length === 1 ? '' : 's' }}</p>
 
-    <div class="grid-wrap ag-theme-quartz">
-      <AgGridVue
-        class="grid"
-        :columnDefs="columnDefs"
-        :rowData="historyRows"
-        :defaultColDef="defaultColDef"
-        :rowHeight="58"
-        :headerHeight="46"
-        :pagination="true"
-        :paginationPageSize="10"
-        :paginationPageSizeSelector="[10, 25, 50]"
-        :alwaysShowVerticalScroll="true"
-        rowSelection="single"
-        @grid-ready="onGridReady"
-        @row-clicked="onRowClicked"
-        @cell-key-down="onCellKeyDown"
-      />
+    <div class="grid-area">
+      <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
+        <AgGridVue
+          class="grid"
+          :columnDefs="columnDefs"
+          :rowData="historyRows"
+          :defaultColDef="defaultColDef"
+          :rowHeight="rowHeight"
+          :headerHeight="46"
+          :pagination="true"
+          :paginationPageSize="10"
+          :paginationPageSizeSelector="[10, 25, 50]"
+          domLayout="autoHeight"
+          :animateRows="true"
+          rowSelection="single"
+          @grid-ready="onGridReady"
+          @row-clicked="onRowClicked"
+          @cell-key-down="onCellKeyDown"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -321,6 +336,7 @@ function download() {
 .col-chooser { position: relative; }
 .col-chooser .ic { width: 15px; height: 15px; }
 .col-chooser .btn.open { border-color: var(--brand-500); color: var(--brand-700); }
+.btn.open { border-color: var(--brand-500); color: var(--brand-700); }
 .col-badge { background: var(--brand-500); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
 .col-catch { position: fixed; inset: 0; z-index: 20; }
 .col-panel {
@@ -358,14 +374,16 @@ function download() {
 
 .count { margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft); }
 
+.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
 .grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.grid { width: 100%; height: 560px;
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
   --ag-header-foreground-color: var(--text);
-  --ag-header-background-color: #e7edf6;
-  --ag-odd-row-background-color: #f4f7fb;
+  --ag-background-color: var(--surface);
+  --ag-header-background-color: var(--grid-header-bg);
+  --ag-odd-row-background-color: var(--grid-zebra);
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
   --ag-border-color: var(--border);
