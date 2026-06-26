@@ -5,8 +5,6 @@ import { downloadCsv } from '../utils/csv.js'
 import { stamp } from '../utils/datetime.js'
 import Sparkline from './Sparkline.vue'
 import AvailabilityTrend from './AvailabilityTrend.vue'
-import AvailabilityInsights from './AvailabilityInsights.vue'
-import TickerTape from './TickerTape.vue'
 import { useWatchlist } from '../composables/useWatchlist.js'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
@@ -30,10 +28,17 @@ const { toggle: toggleStar, isStarred, count: starCount } = useWatchlist()
 const watchlistOnly = ref(false)
 function toggleWatchlistOnly() { watchlistOnly.value = !watchlistOnly.value; page.value = 0 }
 
-// Display set: optionally filtered to the watchlist, then starred names pinned top.
+// --- search (same lookup as the other pages: ticker / SEDOL / ISIN / security) ---
+const query = ref('')
+function onSearch(e) { query.value = e.target.value; page.value = 0 }
+
+// Display set: watchlist filter → text search → starred names pinned top.
 const displayRows = computed(() => {
   let list = rows.value
   if (watchlistOnly.value) list = list.filter(r => isStarred(r.ticker))
+  const q = query.value.trim().toLowerCase()
+  if (q) list = list.filter(r =>
+    [r.ticker, r.security, r.sedol, r.isin, r.country].some(v => (v || '').toString().toLowerCase().includes(q)))
   return [...list].sort((a, b) => (isStarred(b.ticker) ? 1 : 0) - (isStarred(a.ticker) ? 1 : 0))
 })
 
@@ -57,8 +62,6 @@ function setPageSize(e) { pageSize.value = Number(e.target.value); page.value = 
 function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
 
-const showInsights = ref(true)
-const showTape = ref(false)
 
 // Clicking a row (anywhere but the Locate button) opens the trend drawer.
 const selected = ref(null)
@@ -115,17 +118,6 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
           Watchlist<span v-if="starCount" class="wl-count">{{ starCount }}</span>
         </button>
-        <button class="btn ghost lg" :class="{ on: showTape }" @click="showTape = !showTape"
-                :title="showTape ? 'Hide ticker tape' : 'Show ticker tape'">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20M2 12h20M2 17h20" /><path d="M6 7v10M14 7v10" /></svg>
-          Ticker
-        </button>
-        <button class="btn ghost lg" :class="{ on: showInsights }" @click="showInsights = !showInsights">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
-          Insights
-        </button>
         <button class="btn ghost lg" @click="refresh">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
@@ -144,9 +136,18 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       Sample data — simulating an hourly inventory fetch. The live availability feed is wired in with the future webservice.
     </p>
 
-    <TickerTape v-if="showTape" :rows="rows" />
-
-    <AvailabilityInsights v-if="showInsights" :rows="rows" />
+    <!-- Search (same lookup as the other pages) -->
+    <div class="toolbar">
+      <div class="search">
+        <span class="search-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+        </span>
+        <input :value="query" @input="onSearch"
+               aria-label="Search availability by ticker, SEDOL, ISIN, country or security"
+               placeholder="Search ticker, SEDOL, ISIN, security…" />
+      </div>
+    </div>
 
     <div class="tbl-wrap">
       <table class="tbl">
@@ -180,7 +181,11 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
             </td>
           </tr>
           <tr v-if="!pageRows.length">
-            <td class="empty-row" colspan="9">No securities in your watchlist yet — tap the ☆ on any row.</td>
+            <td class="empty-row" colspan="9">
+              <template v-if="query.trim()">No securities match “{{ query }}”.</template>
+              <template v-else-if="watchlistOnly">No securities in your watchlist yet — tap the ☆ on any row.</template>
+              <template v-else>No securities available.</template>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -224,6 +229,17 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
   background: var(--warn-bg); color: var(--warn); font-size: 12.5px;
 }
 .mock-banner svg { width: 16px; height: 16px; flex: none; }
+
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.search { position: relative; flex: 1; max-width: 420px; min-width: 240px; }
+.search-ico { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-mute); display: grid; place-items: center; }
+.search-ico svg { width: 16px; height: 16px; }
+.search input {
+  width: 100%; font-family: inherit; font-size: 13px; padding: 10px 12px 10px 34px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); outline: none; transition: border-color .12s;
+}
+.search input:focus { border-color: var(--brand-500); }
 
 .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
