@@ -6,7 +6,6 @@ import 'ag-grid-community/styles/ag-theme-quartz.css'
 
 import StatusBadge from './components/StatusBadge.vue'
 import StatusIcon from './components/StatusIcon.vue'
-import SecurityCell from './components/SecurityCell.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
 import FileUploadModal from './components/FileUploadModal.vue'
@@ -62,7 +61,6 @@ function exitImpersonation() {
 
 // Columns the user can toggle back on (folded into Security / row detail by default).
 const toggleableCols = ref([
-  { field: 'ticker', label: 'Ticker', visible: false },
   { field: 'bbgTicker', label: 'BBG Ticker', visible: false },
   { field: 'batchId', label: 'Batch ID', visible: false },
   { field: 'locateId', label: 'Locate ID', visible: false },
@@ -82,9 +80,11 @@ const lastRefreshed = ref('2026-06-09 16:22:21')
  * remain reachable via the row-detail drawer and column chooser.
  */
 const mono = { cellClass: 'mono-cell' }
+// Comma-group quantities (e.g. 5000 → "5,000"); blank for null/empty.
+const fmtQty = (p) => (p.value || p.value === 0) ? p.value.toLocaleString() : ''
 
 const columnDefs = ref([
-  // --- Scan set (visible, flex-sized) ---
+  // --- Scan set (visible by default) ---
   { headerName: 'Request Date', field: 'requestDate', flex: 1.1, minWidth: 150 },
   { headerName: 'Status', field: 'status', flex: 0.9, minWidth: 130,
     cellRenderer: markRaw(StatusBadge),
@@ -94,19 +94,21 @@ const columnDefs = ref([
       'status-warn': p => p.value === 'PENDING',
       'status-bad': p => p.value === 'REJECTED'
     } },
-  { headerName: 'Security', field: 'security', flex: 1.8, minWidth: 220,
-    cellRenderer: markRaw(SecurityCell),
-    cellRendererParams: (p) => ({ params: p }),
+  // Ticker and Security are now discrete columns (previously folded into one
+  // stacked Security cell, which read as cramped). Security carries the identifier
+  // quick-filter so search still spans every identifier.
+  { headerName: 'Ticker', field: 'ticker', flex: 0.8, minWidth: 100, cellClass: 'strong-cell' },
+  { headerName: 'Security', field: 'security', flex: 1.6, minWidth: 200,
     getQuickFilterText: (p) =>
       [p.data.ticker, p.data.bbgTicker, p.data.security, p.data.sedol, p.data.isin, p.data.cusip, p.data.ric].join(' ') },
-  // Numbers right-aligned in the body, but the HEADER stays default (label left,
-  // filter icon right) — so we right-align the cell only, not via type:'rightAligned'.
-  { headerName: 'Qty Req', field: 'qtyRequested', flex: 0.7, minWidth: 90, cellClass: 'mono-cell num-cell' },
-  { headerName: 'Qty Appr', field: 'qtyApproved', flex: 0.7, minWidth: 90,
+  // Numbers AND their headers right-aligned (type:'rightAligned'); comma-grouped.
+  { headerName: 'Qty Req', field: 'qtyRequested', type: 'rightAligned', flex: 0.7, minWidth: 100,
+    cellClass: 'mono-cell num-cell', valueFormatter: fmtQty },
+  { headerName: 'Qty Appr', field: 'qtyApproved', type: 'rightAligned', flex: 0.7, minWidth: 100,
+    valueFormatter: fmtQty,
     cellClass: (p) => p.value > 0 ? 'mono-cell num-cell appr-pos' : 'mono-cell num-cell appr-zero' },
 
   // --- Reference set (hidden by default; toggle via column chooser) ---
-  { headerName: 'Ticker', field: 'ticker', minWidth: 100, hide: true, cellClass: 'strong-cell' },
   { headerName: 'BBG Ticker', field: 'bbgTicker', minWidth: 120, hide: true },
   { headerName: 'Batch ID', field: 'batchId', minWidth: 110, hide: true, ...mono },
   { headerName: 'Locate ID', field: 'locateId', minWidth: 120, hide: true, ...mono },
