@@ -6,6 +6,7 @@ import { stamp } from '../utils/datetime.js'
 import Sparkline from './Sparkline.vue'
 import AvailabilityTrend from './AvailabilityTrend.vue'
 import AvailabilityInsights from './AvailabilityInsights.vue'
+import TickerTape from './TickerTape.vue'
 import { useWatchlist } from '../composables/useWatchlist.js'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
@@ -57,6 +58,7 @@ function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
 
 const showInsights = ref(true)
+const showTape = ref(false)
 
 // Clicking a row (anywhere but the Locate button) opens the trend drawer.
 const selected = ref(null)
@@ -113,6 +115,12 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
           Watchlist<span v-if="starCount" class="wl-count">{{ starCount }}</span>
         </button>
+        <button class="btn ghost lg" :class="{ on: showTape }" @click="showTape = !showTape"
+                :title="showTape ? 'Hide ticker tape' : 'Show ticker tape'">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20M2 12h20M2 17h20" /><path d="M6 7v10M14 7v10" /></svg>
+          Ticker
+        </button>
         <button class="btn ghost lg" :class="{ on: showInsights }" @click="showInsights = !showInsights">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
@@ -135,6 +143,8 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.5" /></svg>
       Sample data — simulating an hourly inventory fetch. The live availability feed is wired in with the future webservice.
     </p>
+
+    <TickerTape v-if="showTape" :rows="rows" />
 
     <AvailabilityInsights v-if="showInsights" :rows="rows" />
 
