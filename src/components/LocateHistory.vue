@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw } from 'vue'
+import { ref, computed, shallowRef, markRaw, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import StatusBadge from './StatusBadge.vue'
 import StatusIcon from './StatusIcon.vue'
 import AnimatedNumber from './AnimatedNumber.vue'
 import { useRequests } from '../composables/useRequests.js'
 import { useTheme } from '../composables/useTheme.js'
+import { useDensity } from '../composables/useDensity.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stampShort } from '../utils/datetime.js'
 
@@ -25,6 +26,8 @@ const emit = defineEmits(['select'])
 
 const { rows, scopeByFirm } = useRequests()
 const { isDark } = useTheme()
+const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
+watch(rowHeight, () => gridApi.value?.resetRowHeights())
 
 const today = stampShort().slice(0, 10)
 const quickFilter = ref('')
@@ -245,6 +248,12 @@ function download() {
             <p class="col-hint">Toggled columns are also included in the download.</p>
           </div>
         </div>
+        <button class="btn ghost" :class="{ open: isCompact }" @click="toggleDensity"
+                :title="isCompact ? 'Switch to comfortable rows' : 'Switch to compact rows'">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          {{ isCompact ? 'Compact' : 'Comfortable' }}
+        </button>
         <button class="btn ghost" @click="clearAll">Clear</button>
         <button class="btn ghost" @click="refreshHistory">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -262,7 +271,7 @@ function download() {
         :columnDefs="columnDefs"
         :rowData="historyRows"
         :defaultColDef="defaultColDef"
-        :rowHeight="58"
+        :rowHeight="rowHeight"
         :headerHeight="46"
         :pagination="true"
         :paginationPageSize="10"
@@ -324,6 +333,7 @@ function download() {
 .col-chooser { position: relative; }
 .col-chooser .ic { width: 15px; height: 15px; }
 .col-chooser .btn.open { border-color: var(--brand-500); color: var(--brand-700); }
+.btn.open { border-color: var(--brand-500); color: var(--brand-700); }
 .col-badge { background: var(--brand-500); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
 .col-catch { position: fixed; inset: 0; z-index: 20; }
 .col-panel {

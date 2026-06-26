@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw } from 'vue'
+import { ref, computed, shallowRef, markRaw, watch } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
@@ -18,6 +18,7 @@ import LocateHistory from './components/LocateHistory.vue'
 import { ADMIN_USER, CLIENT_USERS, userById } from './data/users.js'
 import { useSessionStore } from './composables/useSessionStore.js'
 import { useTheme } from './composables/useTheme.js'
+import { useDensity } from './composables/useDensity.js'
 import { useRequests } from './composables/useRequests.js'
 import { stamp } from './utils/datetime.js'
 import scotiaLogo from './assets/scotiabank-logo.svg'
@@ -48,8 +49,11 @@ const activeView = ref('requests')
 /* ---------- user / impersonation ---------- */
 const realUser = ADMIN_USER
 
-/* ---------- theme ---------- */
+/* ---------- theme / density ---------- */
 const { theme, isDark, toggle: toggleTheme } = useTheme()
+const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
+// Re-flow the grid when density changes so existing rows pick up the new height.
+watch(rowHeight, () => gridApi.value?.resetRowHeights())
 
 const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
@@ -367,6 +371,12 @@ function showToast(msg, kind = 'ok') {
                  stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
             Insights
           </button>
+          <button class="btn ghost" :class="{ open: isCompact }" @click="toggleDensity"
+                  :title="isCompact ? 'Switch to comfortable rows' : 'Switch to compact rows'">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+            {{ isCompact ? 'Compact' : 'Comfortable' }}
+          </button>
           <div class="col-chooser">
             <button class="btn ghost" :class="{ open: showColumns }" @click="showColumns = !showColumns">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -414,7 +424,7 @@ function showToast(msg, kind = 'ok') {
           :columnDefs="columnDefs"
           :rowData="filteredRows"
           :defaultColDef="defaultColDef"
-          :rowHeight="58"
+          :rowHeight="rowHeight"
           :headerHeight="46"
           :pagination="true"
           :paginationPageSize="10"
