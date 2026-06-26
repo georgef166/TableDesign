@@ -303,7 +303,7 @@ function showToast(msg, kind = 'ok') {
     </nav>
 
     <main class="content">
-     <section v-if="activeView === 'requests'">
+     <section v-if="activeView === 'requests'" class="view-grid">
       <!-- Page heading + primary action -->
       <div class="page-head">
         <div>
@@ -429,7 +429,6 @@ function showToast(msg, kind = 'ok') {
           :pagination="true"
           :paginationPageSize="10"
           :paginationPageSizeSelector="[10, 25, 50]"
-          domLayout="autoHeight"
           :animateRows="true"
           rowSelection="single"
           @grid-ready="onGridReady"
@@ -440,13 +439,13 @@ function showToast(msg, kind = 'ok') {
      </section>
 
       <!-- Standing Lists view -->
-      <StandingLists v-else-if="activeView === 'standing'" @run="runStandingList" />
+      <StandingLists v-else-if="activeView === 'standing'" class="view-scroll" @run="runStandingList" />
 
       <!-- Availability view -->
-      <AvailabilityView v-else-if="activeView === 'availability'" @locate="locateFromAvailability" />
+      <AvailabilityView v-else-if="activeView === 'availability'" class="view-scroll" @locate="locateFromAvailability" />
 
       <!-- Locate History view (read-only, company-scoped archive) -->
-      <LocateHistory v-else-if="activeView === 'history'" :viewedUser="impersonating"
+      <LocateHistory v-else-if="activeView === 'history'" class="view-grid" :viewedUser="impersonating"
                      @select="selectedRecord = $event" />
     </main>
 
@@ -478,7 +477,7 @@ function showToast(msg, kind = 'ok') {
 </template>
 
 <style scoped>
-.app { min-height: 100%; display: flex; flex-direction: column; }
+.app { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Top bar */
 .topbar {
@@ -557,7 +556,14 @@ function showToast(msg, kind = 'ok') {
 .head-actions { display: flex; gap: 10px; }
 
 /* Content */
-.content { padding: 24px 28px 40px; max-width: 1500px; width: 100%; margin: 0 auto; }
+.content {
+  padding: 24px 28px 28px; max-width: 1500px; width: 100%; margin: 0 auto;
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+}
+/* Grid views fill the viewport and scroll their rows internally (the page itself
+   doesn't scroll); other views scroll normally. */
+.view-grid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.view-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 16px; }
 .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
@@ -675,8 +681,10 @@ function showToast(msg, kind = 'ok') {
   /* Lift the white table off the tinted page background so it reads as a
      distinct surface, not floating numbers. */
   box-shadow: var(--shadow);
+  /* Fill the remaining viewport height; the grid scrolls its rows internally. */
+  flex: 1; min-height: 0;
 }
-.grid { width: 100%;
+.grid { width: 100%; height: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
@@ -741,15 +749,10 @@ function showToast(msg, kind = 'ok') {
 /* Selectors target BOTH the light and dark Quartz themes so these customisations
    hold in either mode. */
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper { border: none; border-radius: 0; }
-/* Ease the row-height change on density toggle (and the autoHeight container
-   resize) so it glides instead of snapping. */
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper,
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-body-viewport { transition: height .28s ease; }
+/* Ease the row-height change on the density toggle so it glides instead of snapping. */
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { transition: height .28s ease, transform .28s ease; }
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: height .28s ease; }
 @media (prefers-reduced-motion: reduce) {
-  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper,
-  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-body-viewport,
   :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row,
   :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: none; }
 }
