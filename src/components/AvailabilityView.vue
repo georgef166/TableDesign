@@ -5,6 +5,7 @@ import { downloadCsv } from '../utils/csv.js'
 import { stamp } from '../utils/datetime.js'
 import Sparkline from './Sparkline.vue'
 import AvailabilityTrend from './AvailabilityTrend.vue'
+import AvailabilityInsights from './AvailabilityInsights.vue'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
 // webservice, so this simulates an hourly fetch: a SINGLE current-hour snapshot,
@@ -40,6 +41,8 @@ const pageRows = computed(() => {
 function setPageSize(e) { pageSize.value = Number(e.target.value); page.value = 0 }
 function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
+
+const showInsights = ref(true)
 
 // Clicking a row (anywhere but the Locate button) opens the trend drawer.
 const selected = ref(null)
@@ -90,6 +93,11 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
       <div class="head-actions">
         <span class="asof">As of <b>{{ asOf }}</b> · {{ rows.length }} securities</span>
+        <button class="btn ghost lg" :class="{ on: showInsights }" @click="showInsights = !showInsights">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
+          Insights
+        </button>
         <button class="btn ghost lg" @click="refresh">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
@@ -107,6 +115,8 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.5" /></svg>
       Sample data — simulating an hourly inventory fetch. The live availability feed is wired in with the future webservice.
     </p>
+
+    <AvailabilityInsights v-if="showInsights" :rows="rows" />
 
     <div class="tbl-wrap">
       <table class="tbl">
@@ -195,6 +205,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 
 .btn { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 12.5px; font-weight: 600; background: var(--surface); color: var(--text-soft); display: inline-flex; align-items: center; gap: 6px; transition: background .12s, border-color .12s, color .12s; }
 .btn:hover { background: var(--brand-50); border-color: var(--brand-500); color: var(--brand-700); }
+.btn.on { border-color: var(--brand-500); color: var(--brand-700); }
 .btn.lg { padding: 9px 16px; font-size: 13px; }
 .btn .ic { width: 15px; height: 15px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; background: var(--surface); border-color: var(--border); color: var(--text-mute); }
