@@ -34,7 +34,7 @@ const prefillSecurity = ref(null)
 const singleLocate = ref(false)
 const selectedRecord = ref(null)
 const showColumns = ref(false)
-const showInsights = ref(true)
+const showInsights = ref(false)
 const toast = ref(null)
 
 /* ---------- navigation ---------- */
@@ -418,23 +418,26 @@ function showToast(msg, kind = 'ok') {
       </p>
 
       <!-- Grid -->
-      <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
-        <AgGridVue
-          class="grid"
-          :columnDefs="columnDefs"
-          :rowData="filteredRows"
-          :defaultColDef="defaultColDef"
-          :rowHeight="rowHeight"
-          :headerHeight="46"
-          :pagination="true"
-          :paginationPageSize="10"
-          :paginationPageSizeSelector="[10, 25, 50]"
-          :animateRows="true"
-          rowSelection="single"
-          @grid-ready="onGridReady"
-          @row-clicked="onRowClicked"
-          @cell-key-down="onCellKeyDown"
-        />
+      <div class="grid-area">
+        <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
+          <AgGridVue
+            class="grid"
+            :columnDefs="columnDefs"
+            :rowData="filteredRows"
+            :defaultColDef="defaultColDef"
+            :rowHeight="rowHeight"
+            :headerHeight="46"
+            :pagination="true"
+            :paginationPageSize="10"
+            :paginationPageSizeSelector="[10, 25, 50]"
+            domLayout="autoHeight"
+            :animateRows="true"
+            rowSelection="single"
+            @grid-ready="onGridReady"
+            @row-clicked="onRowClicked"
+            @cell-key-down="onCellKeyDown"
+          />
+        </div>
       </div>
      </section>
 
@@ -673,6 +676,10 @@ function showToast(msg, kind = 'ok') {
   font-size: 11px; color: var(--text-mute); line-height: 1.4;
 }
 /* Grid */
+/* The grid sizes to its rows (autoHeight → no empty space below them). This area
+   takes the remaining viewport height and scrolls internally when the rows
+   overflow, so the page itself doesn't scroll. */
+.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
 .grid-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -681,10 +688,8 @@ function showToast(msg, kind = 'ok') {
   /* Lift the white table off the tinted page background so it reads as a
      distinct surface, not floating numbers. */
   box-shadow: var(--shadow);
-  /* Fill the remaining viewport height; the grid scrolls its rows internally. */
-  flex: 1; min-height: 0;
 }
-.grid { width: 100%; height: 100%;
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);

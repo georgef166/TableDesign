@@ -265,23 +265,26 @@ function download() {
 
     <p class="count">{{ historyRows.length }} request{{ historyRows.length === 1 ? '' : 's' }}</p>
 
-    <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
-      <AgGridVue
-        class="grid"
-        :columnDefs="columnDefs"
-        :rowData="historyRows"
-        :defaultColDef="defaultColDef"
-        :rowHeight="rowHeight"
-        :headerHeight="46"
-        :pagination="true"
-        :paginationPageSize="10"
-        :paginationPageSizeSelector="[10, 25, 50]"
-        :animateRows="true"
-        rowSelection="single"
-        @grid-ready="onGridReady"
-        @row-clicked="onRowClicked"
-        @cell-key-down="onCellKeyDown"
-      />
+    <div class="grid-area">
+      <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
+        <AgGridVue
+          class="grid"
+          :columnDefs="columnDefs"
+          :rowData="historyRows"
+          :defaultColDef="defaultColDef"
+          :rowHeight="rowHeight"
+          :headerHeight="46"
+          :pagination="true"
+          :paginationPageSize="10"
+          :paginationPageSizeSelector="[10, 25, 50]"
+          domLayout="autoHeight"
+          :animateRows="true"
+          rowSelection="single"
+          @grid-ready="onGridReady"
+          @row-clicked="onRowClicked"
+          @cell-key-down="onCellKeyDown"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -371,8 +374,9 @@ function download() {
 
 .count { margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft); }
 
-.grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); flex: 1; min-height: 0; }
-.grid { width: 100%; height: 100%;
+.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
+.grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
