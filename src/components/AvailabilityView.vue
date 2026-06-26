@@ -44,6 +44,16 @@ function next() { if (page.value < pageCount.value - 1) page.value++ }
 // Clicking a row (anywhere but the Locate button) opens the trend drawer.
 const selected = ref(null)
 function openTrend(row) { selected.value = row }
+// Locate from the drawer: fire the request, then close the drawer so the modal
+// (which sits below the drawer's scrim) is immediately reachable.
+function locateFromTrend() { const r = selected.value; selected.value = null; locate(r) }
+
+// Trend line colour by direction over the window (brand red would make every line
+// red, since the brand IS red) — green if the rate rose, red if it fell.
+function trendColor(series) {
+  if (!series || series.length < 2) return 'var(--text-mute)'
+  return series[series.length - 1] >= series[0] ? 'var(--ok)' : 'var(--bad)'
+}
 
 function locate(row) {
   // Open the request modal LOCKED to this single security: carry its identifiers,
@@ -115,7 +125,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
             <td class="num mono">{{ r.availableQty.toLocaleString() }}</td>
             <td class="num mono" :class="{ htb: r.rate >= 10 }">{{ fmtRate(r.rate) }}</td>
             <td class="spark-cell">
-              <Sparkline :data="r.rateTrend" :color="r.rate >= 10 ? 'var(--bad)' : 'var(--brand-500)'" />
+              <Sparkline :data="r.rateTrend" :color="trendColor(r.rateTrend)" />
             </td>
             <td class="act">
               <button class="btn ghost sm" @click.stop="locate(r)">Locate</button>
@@ -144,7 +154,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 
     <!-- Trend drawer (interactive rate + availability chart for the clicked row) -->
     <AvailabilityTrend v-if="selected" :row="selected" :as-of="asOf"
-                       @close="selected = null" @locate="locate(selected)" />
+                       @close="selected = null" @locate="locateFromTrend" />
   </div>
 </template>
 

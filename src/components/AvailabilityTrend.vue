@@ -29,9 +29,6 @@ const geom = computed(() => {
   return { pts, line, area, min, max, baseY: H - PAD_B }
 })
 
-const color = computed(() =>
-  mode.value === 'rate' && props.row.rate >= 10 ? 'var(--bad)' : 'var(--brand-500)')
-
 // --- hover ---
 const hover = ref(null)   // index
 function onMove(e) {
@@ -55,6 +52,10 @@ const startVal = computed(() => series.value?.[0] ?? current.value)
 const delta = computed(() => current.value - startVal.value)
 const deltaPct = computed(() => startVal.value ? (delta.value / startVal.value) * 100 : 0)
 const up = computed(() => delta.value >= 0)
+
+// Directional colour (green if the series rose over the window, red if it fell) —
+// matches the ▲/▼ headline. Brand red would otherwise make every chart red.
+const color = computed(() => up.value ? 'var(--ok)' : 'var(--bad)')
 
 function fmt(v) {
   return mode.value === 'rate' ? v.toFixed(2) + '%' : Math.round(v).toLocaleString()
