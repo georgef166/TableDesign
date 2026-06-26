@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw } from 'vue'
+import { ref, computed, shallowRef, markRaw, watchEffect } from 'vue'
 import { AgGridVue } from 'ag-grid-vue3'
 import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
@@ -44,6 +44,13 @@ const activeView = ref('requests')
 
 /* ---------- user / impersonation ---------- */
 const realUser = ADMIN_USER
+
+/* ---------- theme ---------- */
+const theme = useSessionStore('theme', 'light')
+// Reflect the theme on <html> (the dark palette is keyed off data-theme="dark").
+watchEffect(() => document.documentElement.setAttribute('data-theme', theme.value))
+function toggleTheme() { theme.value = theme.value === 'dark' ? 'light' : 'dark' }
+
 const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
 const effectiveUser = computed(() => impersonating.value || realUser)
@@ -245,6 +252,14 @@ function showToast(msg, kind = 'ok') {
       </div>
       <div class="topbar-right">
         <span class="refreshed">Refreshed at <b>{{ lastRefreshed }}</b></span>
+        <button class="theme-toggle" @click="toggleTheme"
+                :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+          <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+        </button>
         <div class="user-menu">
           <button class="avatar" :class="{ imp: impersonating }"
                   @click="showUserMenu = !showUserMenu"
@@ -464,6 +479,13 @@ function showToast(msg, kind = 'ok') {
 .brand-title { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
 .brand-sub { font-size: 11px; color: rgba(255,255,255,.72); }
 .topbar-right { display: flex; align-items: center; gap: 16px; }
+.theme-toggle {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.16); color: #fff;
+  display: grid; place-items: center; transition: background .12s;
+}
+.theme-toggle:hover { background: rgba(255,255,255,.28); }
+.theme-toggle svg { width: 17px; height: 17px; }
 .refreshed { font-size: 12px; color: rgba(255,255,255,.78); }
 .refreshed b { color: #fff; font-weight: 600; }
 .avatar {
@@ -642,10 +664,11 @@ function showToast(msg, kind = 'ok') {
   --ag-foreground-color: var(--text);
   /* Darker text on a distinctly tinted band so the header reads as a header. */
   --ag-header-foreground-color: var(--text);
-  --ag-header-background-color: #e7edf6;
+  --ag-background-color: var(--surface);
+  --ag-header-background-color: var(--grid-header-bg);
   /* Stronger zebra + row borders to help the eye track a row across to the
      right-hand quantity columns. */
-  --ag-odd-row-background-color: #f4f7fb;
+  --ag-odd-row-background-color: var(--grid-zebra);
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
   --ag-border-color: var(--border);

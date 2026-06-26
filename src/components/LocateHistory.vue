@@ -365,8 +365,9 @@ function download() {
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
   --ag-header-foreground-color: var(--text);
-  --ag-header-background-color: #e7edf6;
-  --ag-odd-row-background-color: #f4f7fb;
+  --ag-background-color: var(--surface);
+  --ag-header-background-color: var(--grid-header-bg);
+  --ag-odd-row-background-color: var(--grid-zebra);
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
   --ag-border-color: var(--border);
