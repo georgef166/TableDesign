@@ -277,6 +277,7 @@ function download() {
         :paginationPageSize="10"
         :paginationPageSizeSelector="[10, 25, 50]"
         domLayout="autoHeight"
+        :animateRows="true"
         rowSelection="single"
         @grid-ready="onGridReady"
         @row-clicked="onRowClicked"

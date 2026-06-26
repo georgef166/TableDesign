@@ -741,6 +741,18 @@ function showToast(msg, kind = 'ok') {
 /* Selectors target BOTH the light and dark Quartz themes so these customisations
    hold in either mode. */
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper { border: none; border-radius: 0; }
+/* Ease the row-height change on density toggle (and the autoHeight container
+   resize) so it glides instead of snapping. */
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper,
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-body-viewport { transition: height .28s ease; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { transition: height .28s ease, transform .28s ease; }
+:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: height .28s ease; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper,
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-body-viewport,
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row,
+  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: none; }
+}
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
 /* A firm 2px rule under the header band so it clearly separates from the rows. */
 :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header { border-bottom: 2px solid var(--border); }
