@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { generateSnapshot, currentHourLabel } from '../data/availabilitySnapshot.js'
+import { generateSnapshot } from '../data/availabilitySnapshot.js'
 import { downloadCsv } from '../utils/csv.js'
+import { stamp } from '../utils/datetime.js'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
 // webservice, so this simulates an hourly fetch: a SINGLE current-hour snapshot,
@@ -10,10 +11,21 @@ import { downloadCsv } from '../utils/csv.js'
 // modal prefilled with that security.
 const emit = defineEmits(['locate'])
 
-// Generated once per mount. App.vue mounts this view via v-else-if, so switching
-// away and back re-runs setup → a new snapshot, mimicking a fresh hourly call.
-const asOf = currentHourLabel()
-const rows = ref(generateSnapshot())
+// Generated once per mount, and re-pulled on demand via Refresh. `asOf` stamps the
+// exact moment of each fetch (mount or Refresh), so it reflects "now".
+const asOf = ref(stamp())
+const snapshot = ref(generateSnapshot())
+
+// Only locatable rows are shown — a security with 0 available isn't borrowable, so
+// there's no point listing it.
+const rows = computed(() => snapshot.value.filter(r => r.availableQty > 0))
+
+// Manual re-pull of the feed — re-stamps "as of" to the current moment.
+function refresh() {
+  snapshot.value = generateSnapshot()
+  asOf.value = stamp()
+  page.value = 0
+}
 
 // --- pagination (volume effect for the demo) ---
 const pageSize = ref(15)
@@ -28,19 +40,22 @@ function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
 
 function locate(row) {
-  // Carry the row's identifiers + available quantity into the request modal
-  // prefill (the user can trim the qty before submitting).
+  // Open the request modal LOCKED to this single security: carry its identifiers,
+  // the available quantity as a hard cap, and country. The user can only request
+  // this security, up to the available amount.
   emit('locate', {
     ticker: row.ticker, name: row.security, sedol: row.sedol, isin: row.isin,
-    locateBy: 'SHARES', qtyRequested: row.availableQty
+    country: row.country, locateBy: 'SHARES',
+    qtyRequested: row.availableQty, availableQty: row.availableQty
   })
 }
 
 function download() {
-  downloadCsv(`availability_${asOf.replace(/[ :]/g, '-')}.csv`, rows.value, [
+  downloadCsv(`availability_${asOf.value.replace(/[ :]/g, '-')}.csv`, rows.value, [
     { key: 'ticker', header: 'Ticker' },
     { key: 'sedol', header: 'SEDOL' },
     { key: 'security', header: 'Security' },
+    { key: 'country', header: 'Country' },
     { key: 'isin', header: 'ISIN' },
     { key: 'availableQty', header: 'Available Qty' },
     { key: 'rate', header: 'Rate %' }
@@ -59,6 +74,11 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
       <div class="head-actions">
         <span class="asof">As of <b>{{ asOf }}</b> · {{ rows.length }} securities</span>
+        <button class="btn ghost lg" @click="refresh">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
+          Refresh
+        </button>
         <button class="btn ghost lg" @click="download">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
@@ -76,7 +96,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       <table class="tbl">
         <thead>
           <tr>
-            <th>Ticker</th><th>SEDOL</th><th>Security</th>
+            <th>Ticker</th><th>SEDOL</th><th>Security</th><th>Country</th>
             <th class="num">Available</th><th class="num">Rate</th><th></th>
           </tr>
         </thead>
@@ -85,6 +105,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
             <td class="tkr">{{ r.ticker }}</td>
             <td class="mono">{{ r.sedol || '—' }}</td>
             <td class="name">{{ r.security }}</td>
+            <td class="country">{{ r.country }}</td>
             <td class="num mono">{{ r.availableQty.toLocaleString() }}</td>
             <td class="num mono" :class="{ htb: r.rate >= 10 }">{{ fmtRate(r.rate) }}</td>
             <td class="act">
@@ -130,7 +151,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 }
 .mock-banner svg { width: 16px; height: 16px; flex: none; }
 
-.tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tbl th {
   text-align: left; padding: 11px 16px; background: var(--surface-2); color: var(--text-soft);
@@ -142,6 +163,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .tbl tr:hover td { background: var(--brand-50); }
 .tkr { font-weight: 700; }
 .name { color: var(--text-soft); }
+.country { color: var(--text-soft); font-size: 12.5px; }
 .mono { font-family: var(--mono); font-size: 12.5px; }
 .htb { color: var(--bad); font-weight: 700; }
 .act { text-align: right; }

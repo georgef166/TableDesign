@@ -44,8 +44,34 @@ const UNIVERSE = [
   ...EXTRA
 ]
 
-// Pseudo-random spread so each hourly fetch looks fresh.
-const jitter = (base, spread) => Math.max(0, Math.round(base + (Math.random() - 0.5) * spread))
+// Each security keeps a STABLE baseline inventory level + borrow rate (derived
+// deterministically from its ticker), and every fetch only drifts slightly around
+// it. So a refresh shows realistic small movement — not a complete reshuffle.
+function hashTicker(t) {
+  let h = 0
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) & 0x7fffffff
+  return h
+}
+function baseline(ticker) {
+  const h = hashTicker(ticker)
+  return {
+    qty: 60000 + (h % 440000),                    // 60k–500k, fixed per ticker
+    rate: +(0.25 + (h % 1375) / 100).toFixed(2)   // 0.25–14.0%, fixed per ticker
+  }
+}
+// Drift a value by ±(pct/2) around its baseline.
+const drift = (base, pct) => Math.max(0, Math.round(base * (1 + (Math.random() - 0.5) * pct)))
+
+// Country of issue, derived from the ISIN's 2-letter prefix (every row carries an
+// ISIN). Falls back to the raw prefix for any code not in the map.
+const COUNTRY_BY_ISIN = {
+  US: 'United States', CA: 'Canada', GB: 'United Kingdom', DE: 'Germany',
+  FR: 'France', JP: 'Japan', CH: 'Switzerland', AU: 'Australia', HK: 'Hong Kong'
+}
+export function countryFromIsin(isin) {
+  const cc = (isin || '').slice(0, 2).toUpperCase()
+  return COUNTRY_BY_ISIN[cc] || cc || '—'
+}
 
 export function currentHourLabel(d = new Date()) {
   const top = new Date(d)
@@ -53,17 +79,20 @@ export function currentHourLabel(d = new Date()) {
   return stampShort(top)   // YYYY-MM-DD HH:00
 }
 
-// Build the current-hour inventory snapshot. ~50 rows, quantities/rates jittered.
+// Build the current inventory snapshot. ~50 rows; each security drifts a little
+// around its stable per-ticker baseline so a refresh looks like a fresh fetch
+// without numbers jumping all over the place.
 export function generateSnapshot() {
   return UNIVERSE.map(s => {
-    const rate = +(0.25 + Math.random() * 14).toFixed(2)   // borrow rate %
+    const b = baseline(s.ticker)
     return {
       ticker: s.ticker,
       security: s.name,
       sedol: s.sedol,
       isin: s.isin,
-      availableQty: jitter(120000, 480000),
-      rate
+      country: countryFromIsin(s.isin),
+      availableQty: drift(b.qty, 0.12),                                   // ±6%
+      rate: +Math.max(0.1, b.rate + (Math.random() - 0.5) * 0.5).toFixed(2)  // ±0.25
     }
   })
 }
