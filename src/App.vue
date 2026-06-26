@@ -429,7 +429,7 @@ function showToast(msg, kind = 'ok') {
           :pagination="true"
           :paginationPageSize="10"
           :paginationPageSizeSelector="[10, 25, 50]"
-          :alwaysShowVerticalScroll="true"
+          domLayout="autoHeight"
           :animateRows="true"
           rowSelection="single"
           @grid-ready="onGridReady"
@@ -676,7 +676,7 @@ function showToast(msg, kind = 'ok') {
      distinct surface, not floating numbers. */
   box-shadow: var(--shadow);
 }
-.grid { width: 100%; height: 560px;
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);

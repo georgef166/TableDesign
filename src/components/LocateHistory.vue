@@ -276,7 +276,7 @@ function download() {
         :pagination="true"
         :paginationPageSize="10"
         :paginationPageSizeSelector="[10, 25, 50]"
-        :alwaysShowVerticalScroll="true"
+        domLayout="autoHeight"
         rowSelection="single"
         @grid-ready="onGridReady"
         @row-clicked="onRowClicked"
@@ -372,7 +372,7 @@ function download() {
 .count { margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft); }
 
 .grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.grid { width: 100%; height: 560px;
+.grid { width: 100%;
   --ag-font-family: var(--font);
   --ag-font-size: 13px;
   --ag-foreground-color: var(--text);
