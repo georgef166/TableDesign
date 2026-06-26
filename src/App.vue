@@ -395,6 +395,7 @@ function showToast(msg, kind = 'ok') {
           :pagination="true"
           :paginationPageSize="10"
           :paginationPageSizeSelector="[10, 25, 50]"
+          :alwaysShowVerticalScroll="true"
           :animateRows="true"
           rowSelection="single"
           @grid-ready="onGridReady"
@@ -517,7 +518,7 @@ function showToast(msg, kind = 'ok') {
 /* Content */
 .content { padding: 24px 28px 40px; max-width: 1500px; width: 100%; margin: 0 auto; }
 
-.page-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 16px; }
 .page-head h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
 .page-head p { margin: 5px 0 0; color: var(--text-soft); font-size: 13px; }
 
@@ -535,12 +536,17 @@ function showToast(msg, kind = 'ok') {
 .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-soft); }
 .btn.ghost:hover { background: var(--surface-2); border-color: var(--text-mute); }
 
-/* Stat chips */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+/* Stat chips — a compact, balanced cluster (capped width so the cards don't
+   stretch edge-to-edge and strand the number in empty space). Each tile lays the
+   icon + number beside the label rather than stacking them in a tall, sparse box. */
+.stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px; margin-bottom: 16px; max-width: 760px;
+}
 .stat {
   text-align: left; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 16px; display: flex; align-items: center; gap: 11px;
   transition: border-color .12s;
   position: relative; overflow: hidden;
 }
@@ -549,23 +555,23 @@ function showToast(msg, kind = 'ok') {
   background: var(--brand-500); opacity: 0; transition: opacity .12s;
 }
 .stat:hover { border-color: var(--text-mute); }
-.stat.active { border-color: var(--brand-500); border-width: 2px; padding: 13px 15px; }
+.stat.active { border-color: var(--brand-500); border-width: 2px; padding: 11px 15px; }
 .stat.active::before { opacity: 1; }
-.stat .status-ic { color: var(--text-mute); }
+.stat .status-ic { color: var(--text-mute); flex: none; }
 .stat.ok.active::before, .stat.ok .stat-num, .stat.ok .status-ic { color: var(--ok); }
 .stat.warn.active::before, .stat.warn .stat-num, .stat.warn .status-ic { color: var(--warn); }
 .stat.bad.active::before, .stat.bad .stat-num, .stat.bad .status-ic { color: var(--bad); }
 .stat.ok::before { background: var(--ok); }
 .stat.warn::before { background: var(--warn); }
 .stat.bad::before { background: var(--bad); }
-.stat-top { display: flex; align-items: center; gap: 8px; }
-.stat-num { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
-.stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 500; }
+.stat-top { display: flex; align-items: center; gap: 9px; flex: none; }
+.stat-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 600; line-height: 1.2; }
 
 /* Toolbar */
 .toolbar {
   display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; margin-bottom: 14px;
+  gap: 12px; margin-bottom: 12px;
 }
 .search { position: relative; flex: 1; max-width: 420px; }
 .search-ico {
@@ -642,7 +648,6 @@ function showToast(msg, kind = 'ok') {
   --ag-row-hover-color: var(--brand-50);
   --ag-selected-row-background-color: var(--brand-50);
   --ag-border-color: var(--border);
-  --ag-header-column-resize-handle-color: var(--border);
   --ag-cell-horizontal-padding: 14px;
   --ag-borders: none;
   --ag-row-border-color: var(--border);
