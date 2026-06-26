@@ -2,6 +2,7 @@
 import { reactive, ref, computed } from 'vue'
 import { FREQUENCIES, nextRun, scheduleSummary } from '../data/standingLists.js'
 import { readFileToGrid, gridToRecords } from '../composables/useFileImport.js'
+import { findSecurity } from '../data/securities.js'
 import SecurityTypeahead from './SecurityTypeahead.vue'
 
 // Create or edit a standing list: a named, reusable basket of securities plus a
@@ -12,6 +13,15 @@ const emit = defineEmits(['close', 'save'])
 const form = reactive(props.list
   ? JSON.parse(JSON.stringify(props.list))
   : { id: null, name: '', owner: 'gf', enabled: true, schedule: { frequency: 'WEEKDAYS', time: '08:00' }, lastRun: null, items: [] })
+
+// Backfill SEDOL on existing items (older saved/seed lists stored ticker+name but
+// no SEDOL) so the SEDOL column isn't full of dashes.
+form.items.forEach(it => {
+  if (!it.sedol) {
+    const m = findSecurity({ ticker: it.ticker, isin: it.isin })
+    if (m) it.sedol = m.sedol
+  }
+})
 
 const errors = ref({})
 const taRef = ref(null)
@@ -24,6 +34,7 @@ function addItem(o) {
   form.items.push({
     ticker: o.ticker,
     security: o.name || o.security || '',
+    sedol: o.sedol || '',
     isin: o.isin || '',
     locateBy: o.locateBy || 'SHARES',
     qtyRequested: o.qtyRequested ?? null,
@@ -141,9 +152,12 @@ function save() {
           <!-- Reserve rows up front (see .items min-height) so the modal opens at
                the three-security height and doesn't jump as rows are added. -->
           <div v-if="!form.items.length" class="items-empty">Added securities appear here.</div>
+          <div v-if="form.items.length" class="items-head">
+            <span>Ticker</span><span>SEDOL</span><span>Locate by</span><span>Quantity</span><span></span>
+          </div>
           <div v-for="(it, idx) in form.items" :key="it.ticker" class="item">
             <span class="it-tkr">{{ it.ticker }}</span>
-            <span class="it-name">{{ it.security }}</span>
+            <span class="it-sedol">{{ it.sedol || '—' }}</span>
             <select v-model="it.locateBy" class="it-by">
               <option value="SHARES">Shares</option>
               <option value="MARKET_VALUE">Mkt value</option>
@@ -215,12 +229,18 @@ function save() {
   background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--radius-sm);
   font-size: 12px; color: var(--text-mute);
 }
+/* Column labels for the rows below — same grid template as .item so they line up. */
+.items-head {
+  display: grid; grid-template-columns: 54px 1fr 110px 110px 30px; align-items: center; gap: 10px;
+  padding: 0 10px 2px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute);
+}
 .item {
   display: grid; grid-template-columns: 54px 1fr 110px 110px 30px; align-items: center; gap: 10px;
   padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
 .it-tkr { font-weight: 700; font-size: 13px; }
-.it-name { font-size: 12px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.it-sedol { font-family: var(--mono); font-size: 12px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .it-by, .it-qty { font-family: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .it-del { border: none; background: transparent; color: var(--text-mute); width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; }
 .it-del:hover { background: var(--bad-bg); color: var(--bad); }

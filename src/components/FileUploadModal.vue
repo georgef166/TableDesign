@@ -71,7 +71,7 @@ function submit() {
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M12 3v13" /><path d="M7 8l5-5 5 5" />
           </svg>
           <p class="dz-main">Drag an XLS or CSV here, or <label class="dz-link">browse<input type="file" accept=".csv,.xls,.xlsx,text/csv" @change="onInputChange" hidden /></label></p>
-          <p class="dz-sub">Headers can be in any order. Recognised: Ticker, Security, ISIN, SEDOL, CUSIP, Qty Requested, Market Value.</p>
+          <p class="dz-sub">Headers can be in any order. Recognised: Ticker, CUSIP, SEDOL, Quantity (plus ISIN / Market Value).</p>
           <p v-if="parseError" class="dz-err">{{ parseError }}</p>
         </div>
 
@@ -103,13 +103,14 @@ function submit() {
           <div class="tbl-wrap">
             <table class="tbl">
               <thead>
-                <tr><th>Line</th><th>Ticker</th><th>Security</th><th>Qty / MV</th><th>Status</th></tr>
+                <tr><th>Line</th><th>Ticker</th><th>CUSIP</th><th>SEDOL</th><th>Qty</th><th>Status</th></tr>
               </thead>
               <tbody>
                 <tr v-for="r in parsed.rows" :key="r.line" :class="{ bad: r.errors.length }">
                   <td class="mono">{{ r.line }}</td>
                   <td class="mono">{{ r.ticker || '—' }}</td>
-                  <td>{{ r.security || '—' }}</td>
+                  <td class="mono">{{ r.cusip || '—' }}</td>
+                  <td class="mono">{{ r.sedol || '—' }}</td>
                   <td class="mono">
                     <template v-if="r.locateBy === 'MARKET_VALUE' && r.marketValue">${{ r.marketValue.toLocaleString() }}</template>
                     <template v-else-if="r.qtyRequested">{{ r.qtyRequested.toLocaleString() }}</template>
