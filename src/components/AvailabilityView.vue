@@ -6,6 +6,7 @@ import { stamp } from '../utils/datetime.js'
 import Sparkline from './Sparkline.vue'
 import AvailabilityTrend from './AvailabilityTrend.vue'
 import AvailabilityInsights from './AvailabilityInsights.vue'
+import { useWatchlist } from '../composables/useWatchlist.js'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
 // webservice, so this simulates an hourly fetch: a SINGLE current-hour snapshot,
@@ -23,6 +24,18 @@ const snapshot = ref(generateSnapshot())
 // there's no point listing it.
 const rows = computed(() => snapshot.value.filter(r => r.availableQty > 0))
 
+// --- watchlist (star to pin to top; optional watchlist-only filter) ---
+const { toggle: toggleStar, isStarred, count: starCount } = useWatchlist()
+const watchlistOnly = ref(false)
+function toggleWatchlistOnly() { watchlistOnly.value = !watchlistOnly.value; page.value = 0 }
+
+// Display set: optionally filtered to the watchlist, then starred names pinned top.
+const displayRows = computed(() => {
+  let list = rows.value
+  if (watchlistOnly.value) list = list.filter(r => isStarred(r.ticker))
+  return [...list].sort((a, b) => (isStarred(b.ticker) ? 1 : 0) - (isStarred(a.ticker) ? 1 : 0))
+})
+
 // Manual re-pull of the feed (an explicit call to the server) — re-stamps "as of"
 // to the current moment.
 function refresh() {
@@ -34,10 +47,10 @@ function refresh() {
 // --- pagination (volume effect for the demo) ---
 const pageSize = ref(15)
 const page = ref(0)
-const pageCount = computed(() => Math.max(1, Math.ceil(rows.value.length / pageSize.value)))
+const pageCount = computed(() => Math.max(1, Math.ceil(displayRows.value.length / pageSize.value)))
 const pageRows = computed(() => {
   const start = page.value * pageSize.value
-  return rows.value.slice(start, start + pageSize.value)
+  return displayRows.value.slice(start, start + pageSize.value)
 })
 function setPageSize(e) { pageSize.value = Number(e.target.value); page.value = 0 }
 function prev() { if (page.value > 0) page.value-- }
@@ -94,6 +107,12 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
       <div class="head-actions">
         <span class="asof">As of <b>{{ asOf }}</b> · {{ rows.length }} securities</span>
+        <button class="btn ghost lg" :class="{ on: watchlistOnly }" @click="toggleWatchlistOnly"
+                :title="watchlistOnly ? 'Show all securities' : 'Show only my watchlist'">
+          <svg class="ic" viewBox="0 0 24 24" :fill="watchlistOnly ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
+          Watchlist<span v-if="starCount" class="wl-count">{{ starCount }}</span>
+        </button>
         <button class="btn ghost lg" :class="{ on: showInsights }" @click="showInsights = !showInsights">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 4-6" /></svg>
@@ -123,12 +142,20 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       <table class="tbl">
         <thead>
           <tr>
+            <th class="star-col"></th>
             <th>Ticker</th><th>SEDOL</th><th>Security</th><th>Country</th>
             <th class="num">Available</th><th class="num">Rate</th><th>Rate trend (24h)</th><th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="r in pageRows" :key="r.ticker" class="row" @click="openTrend(r)" :title="`View ${r.ticker} trend`">
+            <td class="star-col">
+              <button class="star-btn" :class="{ on: isStarred(r.ticker) }" @click.stop="toggleStar(r.ticker)"
+                      :aria-pressed="isStarred(r.ticker)" :title="isStarred(r.ticker) ? 'Remove from watchlist' : 'Add to watchlist'">
+                <svg viewBox="0 0 24 24" :fill="isStarred(r.ticker) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
+              </button>
+            </td>
             <td class="tkr">{{ r.ticker }}</td>
             <td class="mono">{{ r.sedol || '—' }}</td>
             <td class="name">{{ r.security }}</td>
@@ -141,6 +168,9 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
             <td class="act">
               <button class="btn ghost sm" @click.stop="locate(r)">Locate</button>
             </td>
+          </tr>
+          <tr v-if="!pageRows.length">
+            <td class="empty-row" colspan="9">No securities in your watchlist yet — tap the ☆ on any row.</td>
           </tr>
         </tbody>
       </table>
@@ -196,6 +226,12 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr:hover td { background: var(--brand-50); }
 .row { cursor: pointer; }
+.star-col { width: 34px; text-align: center; padding-left: 10px; padding-right: 0; }
+.star-btn { border: none; background: transparent; padding: 2px; display: grid; place-items: center; color: var(--text-mute); transition: color .12s, transform .1s; }
+.star-btn svg { width: 16px; height: 16px; }
+.star-btn:hover { color: #e0a500; transform: scale(1.12); }
+.star-btn.on { color: #f0b500; }
+.empty-row { text-align: center; padding: 28px; color: var(--text-mute); font-size: 13px; }
 .tkr { font-weight: 700; }
 .name { color: var(--text-soft); }
 .country { color: var(--text-soft); font-size: 12.5px; }
@@ -207,6 +243,7 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .btn { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 12.5px; font-weight: 600; background: var(--surface); color: var(--text-soft); display: inline-flex; align-items: center; gap: 6px; transition: background .12s, border-color .12s, color .12s; }
 .btn:hover { background: var(--brand-50); border-color: var(--brand-500); color: var(--brand-700); }
 .btn.on { border-color: var(--brand-500); color: var(--brand-700); }
+.wl-count { background: var(--brand-500); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 99px; padding: 1px 6px; margin-left: 2px; }
 .btn.lg { padding: 9px 16px; font-size: 13px; }
 .btn .ic { width: 15px; height: 15px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; background: var(--surface); border-color: var(--border); color: var(--text-mute); }
