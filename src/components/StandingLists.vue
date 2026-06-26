@@ -4,6 +4,7 @@ import { useSessionStore } from '../composables/useSessionStore.js'
 import { seedStandingLists, scheduleSummary, nextRun } from '../data/standingLists.js'
 import { stampShort } from '../utils/datetime.js'
 import StandingListModal from './StandingListModal.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 // Standing Lists view. Lists persist to sessionStorage (mock — the real scheduler
 // is a future webservice), so edits survive reloads in the tab and reset when it
@@ -14,6 +15,8 @@ const emit = defineEmits(['run'])
 const lists = useSessionStore('standing-lists', [], seedStandingLists)
 const showModal = ref(false)
 const editing = ref(null)
+// Delete and Run-now are gated behind a confirm popup: { type, list } while pending.
+const pendingAction = ref(null)
 let seq = Date.now()
 
 function openNew() { editing.value = null; showModal.value = true }
@@ -30,12 +33,22 @@ function onSave(list) {
   showModal.value = false
 }
 
-function remove(list) { lists.value = lists.value.filter(l => l.id !== list.id) }
 function toggle(list) { list.enabled = !list.enabled }
 
-function runNow(list) {
-  emit('run', list)
-  list.lastRun = stampShort()
+// Both Delete and Run now ask for confirmation first.
+function askRun(list) { pendingAction.value = { type: 'run', list } }
+function askDelete(list) { pendingAction.value = { type: 'delete', list } }
+function cancelAction() { pendingAction.value = null }
+
+function confirmAction() {
+  const { type, list } = pendingAction.value
+  if (type === 'delete') {
+    lists.value = lists.value.filter(l => l.id !== list.id)
+  } else if (type === 'run') {
+    emit('run', list)
+    list.lastRun = stampShort()
+  }
+  pendingAction.value = null
 }
 </script>
 
@@ -83,18 +96,28 @@ function runNow(list) {
         </dl>
 
         <div class="card-actions">
-          <button class="btn primary sm" @click="runNow(list)">
+          <button class="btn primary sm" @click="askRun(list)">
             <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                  stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l14 8-14 8z" /></svg>
             Run now
           </button>
           <button class="btn ghost sm" @click="openEdit(list)">Edit</button>
-          <button class="btn ghost sm danger" @click="remove(list)">Delete</button>
+          <button class="btn ghost sm danger" @click="askDelete(list)">Delete</button>
         </div>
       </article>
     </div>
 
     <StandingListModal v-if="showModal" :list="editing" @close="showModal = false" @save="onSave" />
+
+    <ConfirmDialog
+      v-if="pendingAction"
+      :title="pendingAction.type === 'delete' ? 'Delete schedule list?' : 'Run this list now?'"
+      :message="pendingAction.type === 'delete'
+        ? `“${pendingAction.list.name}” will be permanently removed. This cannot be undone.`
+        : `Submit ${pendingAction.list.items.length} locate${pendingAction.list.items.length === 1 ? '' : 's'} from “${pendingAction.list.name}” now?`"
+      :confirm-label="pendingAction.type === 'delete' ? 'Delete' : 'Run now'"
+      :tone="pendingAction.type === 'delete' ? 'danger' : 'normal'"
+      @confirm="confirmAction" @cancel="cancelAction" />
   </div>
 </template>
 
