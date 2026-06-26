@@ -131,11 +131,6 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       </div>
     </div>
 
-    <p class="mock-banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.5" /></svg>
-      Sample data — simulating an hourly inventory fetch. The live availability feed is wired in with the future webservice.
-    </p>
-
     <!-- Search (same lookup as the other pages) -->
     <div class="toolbar">
       <div class="search">
@@ -222,13 +217,6 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .head-actions { display: flex; align-items: center; gap: 14px; }
 .asof { font-size: 12.5px; color: var(--text-soft); white-space: nowrap; }
 .asof b { color: var(--text); font-weight: 600; }
-
-.mock-banner {
-  display: flex; align-items: center; gap: 9px; margin: 0 0 18px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--warn-bg); color: var(--warn); font-size: 12.5px;
-}
-.mock-banner svg { width: 16px; height: 16px; flex: none; }
 
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .search { position: relative; flex: 1; max-width: 420px; min-width: 240px; }
