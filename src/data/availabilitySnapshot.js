@@ -62,6 +62,28 @@ function baseline(ticker) {
 // Drift a value by ±(pct/2) around its baseline.
 const drift = (base, pct) => Math.max(0, Math.round(base * (1 + (Math.random() - 0.5) * pct)))
 
+// A believable trailing history per ticker — a deterministic seeded random walk
+// around the stable baseline, ending near "now". Used for the sparklines and the
+// trend chart. `kind`: 'rate' | 'qty'. Deterministic per (ticker, kind) so the
+// line is stable within a session and consistent with the live snapshot.
+export function trendSeries(ticker, kind = 'rate', points = 24) {
+  const b = baseline(ticker)
+  const base = kind === 'rate' ? b.rate : b.qty
+  const floor = kind === 'rate' ? 0.1 : 0
+  const vol = kind === 'rate' ? 0.10 : 0.05          // relative step size
+  let seed = hashTicker(ticker + ':' + kind)
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+  const out = []
+  let v = base * (0.85 + rnd() * 0.3)                // start somewhat off baseline
+  for (let i = 0; i < points; i++) {
+    // mean-revert gently toward the baseline so the walk doesn't wander off
+    v += (base - v) * 0.12
+    v = Math.max(floor, v * (1 + (rnd() - 0.5) * vol))
+    out.push(kind === 'rate' ? +v.toFixed(2) : Math.round(v))
+  }
+  return out
+}
+
 // Country of issue, derived from the ISIN's 2-letter prefix (every row carries an
 // ISIN). Falls back to the raw prefix for any code not in the map.
 const COUNTRY_BY_ISIN = {
@@ -85,14 +107,24 @@ export function currentHourLabel(d = new Date()) {
 export function generateSnapshot() {
   return UNIVERSE.map(s => {
     const b = baseline(s.ticker)
+    const availableQty = drift(b.qty, 0.12)                                  // ±6%
+    const rate = +Math.max(0.1, b.rate + (Math.random() - 0.5) * 0.5).toFixed(2)  // ±0.25
+    // Trailing histories for the sparkline + trend chart; pin the last point to
+    // the live value so the line ends exactly where the displayed number is.
+    const rateTrend = trendSeries(s.ticker, 'rate', 24)
+    const qtyTrend = trendSeries(s.ticker, 'qty', 24)
+    rateTrend[rateTrend.length - 1] = rate
+    qtyTrend[qtyTrend.length - 1] = availableQty
     return {
       ticker: s.ticker,
       security: s.name,
       sedol: s.sedol,
       isin: s.isin,
       country: countryFromIsin(s.isin),
-      availableQty: drift(b.qty, 0.12),                                   // ±6%
-      rate: +Math.max(0.1, b.rate + (Math.random() - 0.5) * 0.5).toFixed(2)  // ±0.25
+      availableQty,
+      rate,
+      rateTrend,
+      qtyTrend
     }
   })
 }

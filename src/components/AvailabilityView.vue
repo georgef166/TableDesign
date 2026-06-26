@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { generateSnapshot } from '../data/availabilitySnapshot.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stamp } from '../utils/datetime.js'
+import Sparkline from './Sparkline.vue'
+import AvailabilityTrend from './AvailabilityTrend.vue'
 
 // Availability = real-time client inventory (FY26 ask). The live feed is a future
 // webservice, so this simulates an hourly fetch: a SINGLE current-hour snapshot,
@@ -38,6 +40,10 @@ const pageRows = computed(() => {
 function setPageSize(e) { pageSize.value = Number(e.target.value); page.value = 0 }
 function prev() { if (page.value > 0) page.value-- }
 function next() { if (page.value < pageCount.value - 1) page.value++ }
+
+// Clicking a row (anywhere but the Locate button) opens the trend drawer.
+const selected = ref(null)
+function openTrend(row) { selected.value = row }
 
 function locate(row) {
   // Open the request modal LOCKED to this single security: carry its identifiers,
@@ -97,19 +103,22 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
         <thead>
           <tr>
             <th>Ticker</th><th>SEDOL</th><th>Security</th><th>Country</th>
-            <th class="num">Available</th><th class="num">Rate</th><th></th>
+            <th class="num">Available</th><th class="num">Rate</th><th>Rate trend (24h)</th><th></th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in pageRows" :key="r.ticker">
+          <tr v-for="r in pageRows" :key="r.ticker" class="row" @click="openTrend(r)" :title="`View ${r.ticker} trend`">
             <td class="tkr">{{ r.ticker }}</td>
             <td class="mono">{{ r.sedol || '—' }}</td>
             <td class="name">{{ r.security }}</td>
             <td class="country">{{ r.country }}</td>
             <td class="num mono">{{ r.availableQty.toLocaleString() }}</td>
             <td class="num mono" :class="{ htb: r.rate >= 10 }">{{ fmtRate(r.rate) }}</td>
+            <td class="spark-cell">
+              <Sparkline :data="r.rateTrend" :color="r.rate >= 10 ? 'var(--bad)' : 'var(--brand-500)'" />
+            </td>
             <td class="act">
-              <button class="btn ghost sm" @click="locate(r)">Locate</button>
+              <button class="btn ghost sm" @click.stop="locate(r)">Locate</button>
             </td>
           </tr>
         </tbody>
@@ -132,6 +141,10 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
         <button class="btn ghost sm" :disabled="page >= pageCount - 1" @click="next">Next</button>
       </div>
     </div>
+
+    <!-- Trend drawer (interactive rate + availability chart for the clicked row) -->
+    <AvailabilityTrend v-if="selected" :row="selected" :as-of="asOf"
+                       @close="selected = null" @locate="locate(selected)" />
   </div>
 </template>
 
@@ -161,9 +174,11 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .tbl td { padding: 11px 16px; border-bottom: 1px solid var(--border-2); }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr:hover td { background: var(--brand-50); }
+.row { cursor: pointer; }
 .tkr { font-weight: 700; }
 .name { color: var(--text-soft); }
 .country { color: var(--text-soft); font-size: 12.5px; }
+.spark-cell { width: 110px; padding-top: 6px; padding-bottom: 6px; }
 .mono { font-family: var(--mono); font-size: 12.5px; }
 .htb { color: var(--bad); font-weight: 700; }
 .act { text-align: right; }
