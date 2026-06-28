@@ -3,10 +3,14 @@
 // exports (e.g. Locate History) can too.
 
 // columns: [{ key, header }]. Values are RFC-4180 quoted when they contain a
-// comma, quote or newline; embedded quotes are doubled.
+// comma, quote or newline; embedded quotes are doubled. Cells beginning with a
+// formula trigger (= + - @, tab or CR) are prefixed with a single quote so a
+// spreadsheet treats them as text — defends against CSV/formula injection when
+// the exported data later comes from an untrusted live feed.
 export function toCsv(rows, columns) {
   const esc = (v) => {
-    const s = v == null ? '' : String(v)
+    let s = v == null ? '' : String(v)
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   const head = columns.map(c => esc(c.header)).join(',')
