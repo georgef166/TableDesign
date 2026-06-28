@@ -1,11 +1,15 @@
 <script setup>
 import { computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
+import { useModal } from '../composables/useModal.js'
 
 // Slide-in panel showing the complete locate record. This is the home for the
 // fields demoted off the grid, so nothing is lost to the compact column set.
 const props = defineProps({ record: { type: Object, required: true } })
 const emit = defineEmits(['close'])
+
+// Escape closes; focus is trapped and returned to the trigger on close.
+const { dialogRef } = useModal(() => emit('close'))
 
 const r = computed(() => props.record)
 
@@ -27,7 +31,7 @@ const request = computed(() => [
 
 <template>
   <div class="scrim" @click.self="emit('close')">
-    <aside class="drawer" role="dialog" aria-modal="true">
+    <aside class="drawer" ref="dialogRef" role="dialog" aria-modal="true">
       <header class="d-head">
         <div class="d-head-main">
           <span class="d-ticker">{{ r.ticker }}</span>

@@ -1,5 +1,13 @@
+<script>
+// Module-level counter (shared across instances) for unique gradient ids — only
+// one drawer renders at a time today, but this keeps the <defs> id collision-proof
+// if that ever changes (mirrors Sparkline.vue).
+let _trendSeq = 0
+</script>
+
 <script setup>
 import { ref, computed } from 'vue'
+import { useModal } from '../composables/useModal.js'
 
 // Interactive trend drawer for a security's borrow rate / availability over the
 // last 24h. Dependency-free SVG with a hover crosshair + tooltip — the "click a
@@ -10,6 +18,9 @@ const props = defineProps({
   asOf: { type: String, default: '' }
 })
 const emit = defineEmits(['close', 'locate'])
+
+// Escape closes; focus is trapped and returned to the trigger on close.
+const { dialogRef } = useModal(() => emit('close'))
 
 const mode = ref('rate')   // 'rate' | 'qty'
 const series = computed(() => mode.value === 'rate' ? props.row.rateTrend : props.row.qtyTrend)
@@ -61,11 +72,14 @@ function fmt(v) {
   return mode.value === 'rate' ? v.toFixed(2) + '%' : Math.round(v).toLocaleString()
 }
 function tooltipLeftPct(px) { return (px / W) * 100 }
+
+// Guaranteed-unique gradient id per instance.
+const gradId = 'trend-' + (++_trendSeq)
 </script>
 
 <template>
   <div class="scrim" @click.self="emit('close')">
-    <aside class="drawer" role="dialog" aria-modal="true" :aria-label="`${row.ticker} trend`">
+    <aside class="drawer" ref="dialogRef" role="dialog" aria-modal="true" :aria-label="`${row.ticker} trend`">
       <header class="d-head">
         <div class="d-head-main">
           <span class="d-ticker">{{ row.ticker }}</span>
@@ -99,12 +113,12 @@ function tooltipLeftPct(px) { return (px / W) * 100 }
           <svg v-if="geom" :viewBox="`0 0 ${W} ${H}`" class="chart" preserveAspectRatio="none"
                @mousemove="onMove" @mouseleave="onLeave">
             <defs>
-              <linearGradient id="trendfill" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient :id="gradId" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" :stop-color="color" stop-opacity="0.20" />
                 <stop offset="100%" :stop-color="color" stop-opacity="0" />
               </linearGradient>
             </defs>
-            <path :d="geom.area" fill="url(#trendfill)" stroke="none" />
+            <path :d="geom.area" :fill="`url(#${gradId})`" stroke="none" />
             <path :d="geom.line" fill="none" :stroke="color" stroke-width="2"
                   stroke-linejoin="round" stroke-linecap="round" />
             <!-- crosshair -->
