@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import SecurityTypeahead from './SecurityTypeahead.vue'
+import { useModal } from '../composables/useModal.js'
 
 // Manual locate entry — a small basket so one or more securities can be submitted
 // in a single session (FY26 note #1: "manual adding multiple locates"). Mirrors the
@@ -15,6 +16,10 @@ const props = defineProps({
   single: { type: Boolean, default: false }
 })
 const emit = defineEmits(['close', 'submit'])
+
+// Escape closes; focus is trapped and returned to the trigger. The typeahead
+// autofocuses itself, so useModal leaves that focus in place.
+const { dialogRef } = useModal(() => emit('close'))
 
 const items = reactive([])
 const errors = ref({})
@@ -117,7 +122,7 @@ function fmtUsd(n) {
 
 <template>
   <div class="overlay" @click.self="emit('close')">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal" ref="dialogRef" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
           <h2>{{ single ? 'Locate Security' : 'New Locate Request' }}</h2>

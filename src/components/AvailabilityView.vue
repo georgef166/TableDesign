@@ -24,9 +24,12 @@ const snapshot = ref(generateSnapshot())
 const rows = computed(() => snapshot.value.filter(r => r.availableQty > 0))
 
 // --- watchlist (star to pin to top; optional watchlist-only filter) ---
-const { toggle: toggleStar, isStarred, count: starCount } = useWatchlist()
+const { toggle: toggleStarRaw, isStarred, count: starCount } = useWatchlist()
 const watchlistOnly = ref(false)
 function toggleWatchlistOnly() { watchlistOnly.value = !watchlistOnly.value; page.value = 0 }
+// Starring re-pins the row to the top of the list, so reset to page 1 — otherwise
+// the row appears to vanish from the page it was starred on.
+function toggleStar(ticker) { toggleStarRaw(ticker); page.value = 0 }
 
 // --- search (same lookup as the other pages: ticker / SEDOL / ISIN / security) ---
 const query = ref('')

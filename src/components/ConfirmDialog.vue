@@ -1,4 +1,6 @@
 <script setup>
+import { useModal } from '../composables/useModal.js'
+
 // Reusable yes/no confirmation modal. Gates destructive or consequential actions
 // (e.g. deleting a schedule list, firing a run) behind an explicit confirm step.
 // Markup mirrors the app's other modals (.modal role="dialog") and reuses the
@@ -11,11 +13,14 @@ defineProps({
   tone: { type: String, default: 'normal' }   // 'normal' | 'danger'
 })
 const emit = defineEmits(['confirm', 'cancel'])
+
+// Escape cancels; focus is trapped and returned to the trigger on close.
+const { dialogRef } = useModal(() => emit('cancel'))
 </script>
 
 <template>
   <div class="overlay" @click.self="emit('cancel')">
-    <div class="modal" role="dialog" aria-modal="true" :aria-label="title">
+    <div class="modal" ref="dialogRef" role="dialog" aria-modal="true" :aria-label="title">
       <div class="cd-body">
         <span class="cd-ico" :class="tone">
           <svg v-if="tone === 'danger'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

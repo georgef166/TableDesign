@@ -1,12 +1,16 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { readFileToGrid, gridToRecords, FIELD_LABELS } from '../composables/useFileImport.js'
+import { useModal } from '../composables/useModal.js'
 
 // Bulk file uploader. Core FY26 requirement: read the columns in ANY order as long
 // as the header is present (XLS/XLSX or CSV). The parse + header-mapping pipeline
 // lives in useFileImport.js so the Schedule List modal can reuse it. A preview
 // step shows the detected mapping + per-row validation before anything is submitted.
 const emit = defineEmits(['close', 'submit'])
+
+// Escape closes; focus is trapped and returned to the trigger on close.
+const { dialogRef } = useModal(() => emit('close'))
 
 const dragging = ref(false)
 const fileName = ref('')
@@ -50,7 +54,7 @@ function submit() {
 
 <template>
   <div class="overlay" @click.self="emit('close')">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal" ref="dialogRef" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
           <h2>File Upload (1 or more)</h2>

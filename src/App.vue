@@ -1,12 +1,9 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw, watch } from 'vue'
-import { AgGridVue } from 'ag-grid-vue3'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-quartz.css'
+import { ref, computed, onBeforeUnmount } from 'vue'
 
-import StatusBadge from './components/StatusBadge.vue'
-import StatusIcon from './components/StatusIcon.vue'
-import AnimatedNumber from './components/AnimatedNumber.vue'
+import LocateGrid from './components/LocateGrid.vue'
+import StatusFilterCards from './components/StatusFilterCards.vue'
+import { makeToggleableCols } from './components/locateColumns.js'
 import RequestsInsights from './components/RequestsInsights.vue'
 import NewRequestModal from './components/NewRequestModal.vue'
 import DetailDrawer from './components/DetailDrawer.vue'
@@ -50,10 +47,8 @@ const activeView = ref('requests')
 const realUser = ADMIN_USER
 
 /* ---------- theme / density ---------- */
-const { theme, isDark, toggle: toggleTheme } = useTheme()
-const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
-// Re-flow the grid when density changes so existing rows pick up the new height.
-watch(rowHeight, () => gridApi.value?.resetRowHeights())
+const { theme, toggle: toggleTheme } = useTheme()
+const { isCompact, toggle: toggleDensity } = useDensity()
 
 const impersonatingId = useSessionStore('impersonating-user-id', null)
 const impersonating = computed(() => impersonatingId.value ? userById(impersonatingId.value) : null)
@@ -74,70 +69,10 @@ function exitImpersonation() {
 }
 
 // Columns the user can toggle back on (folded into Security / row detail by default).
-const toggleableCols = ref([
-  { field: 'bbgTicker', label: 'BBG Ticker', visible: false },
-  { field: 'batchId', label: 'Batch ID', visible: false },
-  { field: 'locateId', label: 'Locate ID', visible: false },
-  { field: 'sedol', label: 'SEDOL', visible: false },
-  { field: 'isin', label: 'ISIN', visible: false },
-  { field: 'ric', label: 'RIC', visible: false },
-  { field: 'cusip', label: 'CUSIP', visible: false }
-])
+const toggleableCols = ref(makeToggleableCols())
 const extraColCount = computed(() => toggleableCols.value.filter(c => c.visible).length)
-const gridApi = shallowRef(null)
+const gridRef = ref(null)
 const lastRefreshed = ref('2026-06-09 16:22:21')
-
-/* ---------- columns ----------
- * Two tiers: a compact, flex-sized SCAN set shown by default (fills the width,
- * so there is no horizontal scroll), and demoted REFERENCE columns hidden by
- * default — the redundant identifiers are folded into the Security cell and
- * remain reachable via the row-detail drawer and column chooser.
- */
-const mono = { cellClass: 'mono-cell' }
-// Comma-group quantities (e.g. 5000 → "5,000"); blank for null/empty.
-const fmtQty = (p) => (p.value || p.value === 0) ? p.value.toLocaleString() : ''
-
-const columnDefs = ref([
-  // --- Scan set (visible by default) ---
-  { headerName: 'Request Date', field: 'requestDate', flex: 1.1, minWidth: 150 },
-  { headerName: 'Status', field: 'status', flex: 0.9, minWidth: 130,
-    cellRenderer: markRaw(StatusBadge),
-    cellRendererParams: (p) => ({ params: p }),
-    cellClassRules: {
-      'status-ok': p => p.value === 'APPROVED',
-      'status-warn': p => p.value === 'PENDING',
-      'status-bad': p => p.value === 'REJECTED'
-    } },
-  // Ticker and Security are now discrete columns (previously folded into one
-  // stacked Security cell, which read as cramped). Security carries the identifier
-  // quick-filter so search still spans every identifier.
-  { headerName: 'Ticker', field: 'ticker', flex: 0.8, minWidth: 100, cellClass: 'strong-cell' },
-  { headerName: 'Security', field: 'security', flex: 1.6, minWidth: 200,
-    getQuickFilterText: (p) =>
-      [p.data.ticker, p.data.bbgTicker, p.data.security, p.data.sedol, p.data.isin, p.data.cusip, p.data.ric].join(' ') },
-  // Numbers AND their headers right-aligned (type:'rightAligned'); comma-grouped.
-  { headerName: 'Qty Req', field: 'qtyRequested', type: 'rightAligned', flex: 0.7, minWidth: 100,
-    cellClass: 'mono-cell num-cell', valueFormatter: fmtQty },
-  { headerName: 'Qty Appr', field: 'qtyApproved', type: 'rightAligned', flex: 0.7, minWidth: 100,
-    valueFormatter: fmtQty,
-    cellClass: (p) => p.value > 0 ? 'mono-cell num-cell appr-pos' : 'mono-cell num-cell appr-zero' },
-
-  // --- Reference set (hidden by default; toggle via column chooser) ---
-  { headerName: 'BBG Ticker', field: 'bbgTicker', minWidth: 120, hide: true },
-  { headerName: 'Batch ID', field: 'batchId', minWidth: 110, hide: true, ...mono },
-  { headerName: 'Locate ID', field: 'locateId', minWidth: 120, hide: true, ...mono },
-  { headerName: 'SEDOL', field: 'sedol', minWidth: 110, hide: true, ...mono },
-  { headerName: 'ISIN', field: 'isin', minWidth: 140, hide: true, ...mono },
-  { headerName: 'RIC', field: 'ric', minWidth: 110, hide: true, ...mono },
-  { headerName: 'CUSIP', field: 'cusip', minWidth: 120, hide: true, ...mono }
-])
-
-const defaultColDef = {
-  sortable: true,
-  resizable: true,
-  filter: true,
-  suppressHeaderMenuButton: false
-}
 
 /* ---------- derived ---------- */
 // When impersonating a client, the grid + counts are scoped to that client's
@@ -157,43 +92,30 @@ const counts = computed(() => {
 })
 
 /* ---------- handlers ---------- */
-function onGridReady(params) {
-  gridApi.value = params.api
-}
-
-function onRowClicked(e) {
-  selectedRecord.value = e.data
-}
-
-// Keyboard parity: open the detail drawer with Enter/Space on the focused row.
-function onCellKeyDown(e) {
-  if (e.event?.key === 'Enter' || e.event?.key === ' ') {
-    e.event.preventDefault()
-    selectedRecord.value = e.data
-  }
+// The grid watches `quickFilter` and `toggleableCols` (via columnVisibility), so
+// these handlers only update local state — no grid-api plumbing here.
+function onRowClicked(row) {
+  selectedRecord.value = row
 }
 
 function toggleColumn(col) {
   col.visible = !col.visible
-  gridApi.value?.setColumnsVisible([col.field], col.visible)
 }
 
 function onQuickFilter(e) {
   quickFilter.value = e.target.value
-  gridApi.value?.setGridOption('quickFilterText', e.target.value)
 }
 
 function clearFilters() {
   quickFilter.value = ''
   statusFilter.value = 'ALL'
-  gridApi.value?.setGridOption('quickFilterText', '')
   showToast('Filters cleared', 'info')
 }
 
 function refresh() {
   // simulate a refresh cycle
   lastRefreshed.value = stamp()
-  gridApi.value?.flashCells({ rowNodes: gridApi.value.getRenderedNodes?.() })
+  gridRef.value?.flash()
   showToast('Grid refreshed', 'info')
 }
 
@@ -240,6 +162,7 @@ function showToast(msg, kind = 'ok') {
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => (toast.value = null), 3200)
 }
+onBeforeUnmount(() => clearTimeout(toastTimer))
 </script>
 
 <template>
@@ -325,28 +248,8 @@ function showToast(msg, kind = 'ok') {
       </div>
 
       <!-- Status filter cards (a toggle group; selection is shown by icon + colour + border, never colour alone) -->
-      <div class="stats" role="group" aria-label="Filter requests by status">
-        <button class="stat" :class="{ active: statusFilter === 'ALL' }"
-                :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
-          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.ALL" /></span></span>
-          <span class="stat-lbl">All Requests</span>
-        </button>
-        <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
-                :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
-          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.APPROVED" /></span></span>
-          <span class="stat-lbl">Approved</span>
-        </button>
-        <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
-                :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
-          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.PENDING" /></span></span>
-          <span class="stat-lbl">Pending</span>
-        </button>
-        <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
-                :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
-          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.REJECTED" /></span></span>
-          <span class="stat-lbl">Rejected</span>
-        </button>
-      </div>
+      <StatusFilterCards v-model="statusFilter" :counts="counts" class="stats-row"
+                         aria-label="Filter requests by status" />
 
       <!-- Insights dashboard (collapsible) -->
       <RequestsInsights v-if="showInsights" :rows="scopedRows" />
@@ -418,27 +321,8 @@ function showToast(msg, kind = 'ok') {
       </p>
 
       <!-- Grid -->
-      <div class="grid-area">
-        <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
-          <AgGridVue
-            class="grid"
-            :columnDefs="columnDefs"
-            :rowData="filteredRows"
-            :defaultColDef="defaultColDef"
-            :rowHeight="rowHeight"
-            :headerHeight="46"
-            :pagination="true"
-            :paginationPageSize="10"
-            :paginationPageSizeSelector="[10, 25, 50]"
-            domLayout="autoHeight"
-            :animateRows="true"
-            rowSelection="single"
-            @grid-ready="onGridReady"
-            @row-clicked="onRowClicked"
-            @cell-key-down="onCellKeyDown"
-          />
-        </div>
-      </div>
+      <LocateGrid ref="gridRef" :rows="filteredRows" :quick-filter-text="quickFilter"
+                  :column-visibility="toggleableCols" @select="onRowClicked" />
      </section>
 
       <!-- Standing Lists view -->
@@ -586,37 +470,9 @@ function showToast(msg, kind = 'ok') {
 .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text-soft); }
 .btn.ghost:hover { background: var(--surface-2); border-color: var(--text-mute); }
 
-/* Stat chips — a compact, balanced cluster (capped width so the cards don't
-   stretch edge-to-edge and strand the number in empty space). Each tile lays the
-   icon + number beside the label rather than stacking them in a tall, sparse box. */
-.stats {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px; margin-bottom: 16px; max-width: 760px;
-}
-.stat {
-  text-align: left; background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 12px 16px; display: flex; align-items: center; gap: 11px;
-  transition: border-color .12s;
-  position: relative; overflow: hidden;
-}
-.stat::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--brand-500); opacity: 0; transition: opacity .12s;
-}
-.stat:hover { border-color: var(--text-mute); }
-.stat.active { border-color: var(--brand-500); border-width: 2px; padding: 11px 15px; }
-.stat.active::before { opacity: 1; }
-.stat .status-ic { color: var(--text-mute); flex: none; }
-.stat.ok.active::before, .stat.ok .stat-num, .stat.ok .status-ic { color: var(--ok); }
-.stat.warn.active::before, .stat.warn .stat-num, .stat.warn .status-ic { color: var(--warn); }
-.stat.bad.active::before, .stat.bad .stat-num, .stat.bad .status-ic { color: var(--bad); }
-.stat.ok::before { background: var(--ok); }
-.stat.warn::before { background: var(--warn); }
-.stat.bad::before { background: var(--bad); }
-.stat-top { display: flex; align-items: center; gap: 9px; flex: none; }
-.stat-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
-.stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 600; line-height: 1.2; }
+/* Status filter cards live in <StatusFilterCards>; only the page spacing is here.
+   (The card root is in this component's scope too, so the class applies.) */
+.stats-row { margin-bottom: 16px; }
 
 /* Toolbar */
 .toolbar {
@@ -675,38 +531,6 @@ function showToast(msg, kind = 'ok') {
   margin: 6px 8px 2px; padding-top: 8px; border-top: 1px solid var(--border-2);
   font-size: 11px; color: var(--text-mute); line-height: 1.4;
 }
-/* Grid */
-/* The grid sizes to its rows (autoHeight → no empty space below them). This area
-   takes the remaining viewport height and scrolls internally when the rows
-   overflow, so the page itself doesn't scroll. */
-.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
-.grid-wrap {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  /* Lift the white table off the tinted page background so it reads as a
-     distinct surface, not floating numbers. */
-  box-shadow: var(--shadow);
-}
-.grid { width: 100%;
-  --ag-font-family: var(--font);
-  --ag-font-size: 13px;
-  --ag-foreground-color: var(--text);
-  /* Darker text on a distinctly tinted band so the header reads as a header. */
-  --ag-header-foreground-color: var(--text);
-  --ag-background-color: var(--surface);
-  --ag-header-background-color: var(--grid-header-bg);
-  /* Stronger zebra + row borders to help the eye track a row across to the
-     right-hand quantity columns. */
-  --ag-odd-row-background-color: var(--grid-zebra);
-  --ag-row-hover-color: var(--brand-50);
-  --ag-selected-row-background-color: var(--brand-50);
-  --ag-border-color: var(--border);
-  --ag-cell-horizontal-padding: 14px;
-  --ag-borders: none;
-  --ag-row-border-color: var(--border);
-}
 
 /* Toast */
 .toast {
@@ -730,44 +554,6 @@ function showToast(msg, kind = 'ok') {
 .toast-enter-from, .toast-leave-to { opacity: 0; }
 
 @media (max-width: 760px) {
-  .stats { grid-template-columns: repeat(2, 1fr); }
   .page-head { flex-direction: column; align-items: stretch; gap: 14px; }
 }
-</style>
-
-<style>
-/* Global AG Grid cell helpers (un-scoped so they reach grid-rendered cells) */
-.mono-cell { font-family: var(--mono); font-size: 12.5px; color: var(--text-soft); }
-/* Right-align numeric cell VALUES without flipping the header (label stays left, filter right). */
-.num-cell { text-align: right; }
-.strong-cell { font-weight: 600; }
-.type-cell { color: var(--text-soft); font-weight: 600; font-size: 12px; letter-spacing: .02em; }
-.appr-pos { color: var(--ok); font-weight: 600; }
-.appr-zero { color: var(--text-mute); }
-/* Status word colored by value (also a fallback if the badge renderer is bypassed) */
-.status-ok   { color: var(--ok);   font-weight: 700; }
-.status-warn { color: var(--warn); font-weight: 700; }
-.status-bad  { color: var(--bad);  font-weight: 700; }
-/* Quartz rounds its own .ag-root-wrapper (8px), which mismatches the .grid-wrap
-   container radius (4px) and shows a notch at the top corners. Flatten the inner
-   wrapper so .grid-wrap (overflow:hidden + --radius) owns the single rounding. */
-/* Selectors target BOTH the light and dark Quartz themes so these customisations
-   hold in either mode. */
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-root-wrapper { border: none; border-radius: 0; }
-/* Ease the row-height change on the density toggle so it glides instead of snapping. */
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { transition: height .28s ease, transform .28s ease; }
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: height .28s ease; }
-@media (prefers-reduced-motion: reduce) {
-  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row,
-  :is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-cell { transition: none; }
-}
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell-text { font-weight: 700; letter-spacing: .02em; color: var(--text); }
-/* A firm 2px rule under the header band so it clearly separates from the rows. */
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header { border-bottom: 2px solid var(--border); }
-/* Faint vertical guides between header columns to anchor the right-hand numbers. */
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-header-cell:not(:last-child)::after {
-  content: ''; position: absolute; right: 0; top: 25%; height: 50%;
-  width: 1px; background: var(--border);
-}
-:is(.ag-theme-quartz, .ag-theme-quartz-dark) .ag-row { cursor: pointer; }
 </style>

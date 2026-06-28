@@ -3,12 +3,16 @@ import { reactive, ref, computed } from 'vue'
 import { FREQUENCIES, nextRun, scheduleSummary } from '../data/standingLists.js'
 import { readFileToGrid, gridToRecords } from '../composables/useFileImport.js'
 import { findSecurity } from '../data/securities.js'
+import { useModal } from '../composables/useModal.js'
 import SecurityTypeahead from './SecurityTypeahead.vue'
 
 // Create or edit a standing list: a named, reusable basket of securities plus a
 // schedule (the FY26 "create & save a standing list & schedule it" ask).
 const props = defineProps({ list: { type: Object, default: null } })
 const emit = defineEmits(['close', 'save'])
+
+// Escape closes; focus is trapped and returned to the trigger on close.
+const { dialogRef } = useModal(() => emit('close'))
 
 const form = reactive(props.list
   ? JSON.parse(JSON.stringify(props.list))
@@ -96,7 +100,7 @@ function save() {
 
 <template>
   <div class="overlay" @click.self="emit('close')">
-    <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal" ref="dialogRef" role="dialog" aria-modal="true">
       <header class="modal-head">
         <div>
           <h2>{{ form.id ? 'Edit Schedule List' : 'New Schedule List' }}</h2>
