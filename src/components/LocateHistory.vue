@@ -1,18 +1,12 @@
 <script setup>
-import { ref, computed, shallowRef, markRaw, watch } from 'vue'
-import { AgGridVue } from 'ag-grid-vue3'
-import StatusBadge from './StatusBadge.vue'
-import StatusIcon from './StatusIcon.vue'
-import AnimatedNumber from './AnimatedNumber.vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
+import LocateGrid from './LocateGrid.vue'
+import StatusFilterCards from './StatusFilterCards.vue'
+import { makeToggleableCols } from './locateColumns.js'
 import { useRequests } from '../composables/useRequests.js'
-import { useTheme } from '../composables/useTheme.js'
 import { useDensity } from '../composables/useDensity.js'
 import { downloadCsv } from '../utils/csv.js'
 import { stampShort } from '../utils/datetime.js'
-
-// Comma-group quantities; blank for null/empty.
-const fmtQty = (p) => (p.value || p.value === 0) ? p.value.toLocaleString() : ''
-const mono = { cellClass: 'mono-cell' }
 
 // Locate History — a read-only, company-scoped archive of every locate request.
 // Same store as the Requests grid (useRequests), but presented as an audit/lookup
@@ -25,9 +19,7 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const { rows, scopeByFirm } = useRequests()
-const { isDark } = useTheme()
-const { isCompact, rowHeight, toggle: toggleDensity } = useDensity()
-watch(rowHeight, () => gridApi.value?.resetRowHeights())
+const { isCompact, toggle: toggleDensity } = useDensity()
 
 const today = stampShort().slice(0, 10)
 const quickFilter = ref('')
@@ -39,18 +31,9 @@ const toDate = ref(today)
 const appliedFrom = ref(today)
 const appliedTo = ref(today)
 const fetching = ref(false)
-const gridApi = shallowRef(null)
 
 // Columns the user can toggle on (defaults below are always shown).
-const toggleableCols = ref([
-  { field: 'bbgTicker', label: 'BBG Ticker', visible: false },
-  { field: 'batchId', label: 'Batch ID', visible: false },
-  { field: 'locateId', label: 'Locate ID', visible: false },
-  { field: 'sedol', label: 'SEDOL', visible: false },
-  { field: 'isin', label: 'ISIN', visible: false },
-  { field: 'ric', label: 'RIC', visible: false },
-  { field: 'cusip', label: 'CUSIP', visible: false }
-])
+const toggleableCols = ref(makeToggleableCols())
 const showColumns = ref(false)
 const extraColCount = computed(() => toggleableCols.value.filter(c => c.visible).length)
 
@@ -73,55 +56,10 @@ const historyRows = computed(() =>
     : dateScopedRows.value.filter(r => r.status === statusFilter.value)
 )
 
-const columnDefs = ref([
-  // --- Default columns (always visible) ---
-  { headerName: 'Request Date', field: 'requestDate', flex: 1.1, minWidth: 160 },
-  { headerName: 'Status', field: 'status', flex: 0.9, minWidth: 130,
-    cellRenderer: markRaw(StatusBadge),
-    cellRendererParams: (p) => ({ params: p }),
-    cellClassRules: {
-      'status-ok': p => p.value === 'APPROVED',
-      'status-warn': p => p.value === 'PENDING',
-      'status-bad': p => p.value === 'REJECTED'
-    } },
-  { headerName: 'Ticker', field: 'ticker', flex: 0.8, minWidth: 100, cellClass: 'strong-cell' },
-  { headerName: 'Security', field: 'security', flex: 1.6, minWidth: 200,
-    getQuickFilterText: (p) =>
-      [p.data.ticker, p.data.bbgTicker, p.data.security, p.data.sedol, p.data.isin, p.data.cusip, p.data.ric].join(' ') },
-  { headerName: 'Qty Req', field: 'qtyRequested', type: 'rightAligned', flex: 0.7, minWidth: 100,
-    cellClass: 'mono-cell num-cell', valueFormatter: fmtQty },
-  { headerName: 'Qty Appr', field: 'qtyApproved', type: 'rightAligned', flex: 0.7, minWidth: 100,
-    valueFormatter: fmtQty,
-    cellClass: (p) => p.value > 0 ? 'mono-cell num-cell appr-pos' : 'mono-cell num-cell appr-zero' },
-
-  // --- Reference set (hidden by default; toggle via the column chooser) ---
-  { headerName: 'BBG Ticker', field: 'bbgTicker', minWidth: 120, hide: true },
-  { headerName: 'Batch ID', field: 'batchId', minWidth: 110, hide: true, ...mono },
-  { headerName: 'Locate ID', field: 'locateId', minWidth: 120, hide: true, ...mono },
-  { headerName: 'SEDOL', field: 'sedol', minWidth: 110, hide: true, ...mono },
-  { headerName: 'ISIN', field: 'isin', minWidth: 140, hide: true, ...mono },
-  { headerName: 'RIC', field: 'ric', minWidth: 110, hide: true, ...mono },
-  { headerName: 'CUSIP', field: 'cusip', minWidth: 120, hide: true, ...mono }
-])
-
-const defaultColDef = { sortable: true, resizable: true, filter: true }
-
-function onGridReady(params) { gridApi.value = params.api }
-function onQuickFilter(e) {
-  quickFilter.value = e.target.value
-  gridApi.value?.setGridOption('quickFilterText', e.target.value)
-}
-function onRowClicked(e) { emit('select', e.data) }
-function onCellKeyDown(e) {
-  if (e.event?.key === 'Enter' || e.event?.key === ' ') {
-    e.event.preventDefault()
-    emit('select', e.data)
-  }
-}
-function toggleColumn(col) {
-  col.visible = !col.visible
-  gridApi.value?.setColumnsVisible([col.field], col.visible)
-}
+// The grid (LocateGrid) watches `quickFilter` and `toggleableCols`, so these
+// handlers only update local state.
+function onQuickFilter(e) { quickFilter.value = e.target.value }
+function toggleColumn(col) { col.visible = !col.visible }
 
 // Apply the edited date range (mocks a backend fetch with a brief loading state).
 let fetchTimer
@@ -132,6 +70,9 @@ function applyDates() {
   clearTimeout(fetchTimer)
   fetchTimer = setTimeout(() => { fetching.value = false }, 450)
 }
+// History unmounts on view switch — drop a pending fetch timer so it can't fire
+// against a torn-down instance.
+onBeforeUnmount(() => clearTimeout(fetchTimer))
 
 // Reset the range to today (both edited + applied). The button is always shown.
 function clearDates() {
@@ -141,9 +82,9 @@ function clearDates() {
 }
 
 // Toolbar "Clear" — reset every filter (search, status, dates) like Locate Requests.
+// The grid watches `quickFilter`, so clearing the ref clears the grid's filter too.
 function clearAll() {
   quickFilter.value = ''
-  gridApi.value?.setGridOption('quickFilterText', '')
   statusFilter.value = 'ALL'
   clearDates()
 }
@@ -186,28 +127,8 @@ function download() {
 
     <!-- Filters row: status cards (left) + date range (right) -->
     <div class="filters-row">
-      <div class="stats" role="group" aria-label="Filter history by status">
-        <button class="stat" :class="{ active: statusFilter === 'ALL' }"
-                :aria-pressed="statusFilter === 'ALL'" @click="statusFilter = 'ALL'">
-          <span class="stat-top"><StatusIcon status="ALL" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.ALL" /></span></span>
-          <span class="stat-lbl">All Requests</span>
-        </button>
-        <button class="stat ok" :class="{ active: statusFilter === 'APPROVED' }"
-                :aria-pressed="statusFilter === 'APPROVED'" @click="statusFilter = 'APPROVED'">
-          <span class="stat-top"><StatusIcon status="APPROVED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.APPROVED" /></span></span>
-          <span class="stat-lbl">Approved</span>
-        </button>
-        <button class="stat warn" :class="{ active: statusFilter === 'PENDING' }"
-                :aria-pressed="statusFilter === 'PENDING'" @click="statusFilter = 'PENDING'">
-          <span class="stat-top"><StatusIcon status="PENDING" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.PENDING" /></span></span>
-          <span class="stat-lbl">Pending</span>
-        </button>
-        <button class="stat bad" :class="{ active: statusFilter === 'REJECTED' }"
-                :aria-pressed="statusFilter === 'REJECTED'" @click="statusFilter = 'REJECTED'">
-          <span class="stat-top"><StatusIcon status="REJECTED" :size="17" /><span class="stat-num"><AnimatedNumber :value="counts.REJECTED" /></span></span>
-          <span class="stat-lbl">Rejected</span>
-        </button>
-      </div>
+      <StatusFilterCards v-model="statusFilter" :counts="counts" class="hist-stats"
+                         aria-label="Filter history by status" />
       <div class="dates">
         <label>From <input type="date" v-model="fromDate" /></label>
         <label>To <input type="date" v-model="toDate" /></label>
@@ -265,27 +186,8 @@ function download() {
 
     <p class="count">{{ historyRows.length }} request{{ historyRows.length === 1 ? '' : 's' }}</p>
 
-    <div class="grid-area">
-      <div class="grid-wrap" :class="isDark ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'">
-        <AgGridVue
-          class="grid"
-          :columnDefs="columnDefs"
-          :rowData="historyRows"
-          :defaultColDef="defaultColDef"
-          :rowHeight="rowHeight"
-          :headerHeight="46"
-          :pagination="true"
-          :paginationPageSize="10"
-          :paginationPageSizeSelector="[10, 25, 50]"
-          domLayout="autoHeight"
-          :animateRows="true"
-          rowSelection="single"
-          @grid-ready="onGridReady"
-          @row-clicked="onRowClicked"
-          @cell-key-down="onCellKeyDown"
-        />
-      </div>
-    </div>
+    <LocateGrid :rows="historyRows" :quick-filter-text="quickFilter"
+                :column-visibility="toggleableCols" @select="emit('select', $event)" />
   </div>
 </template>
 
@@ -298,36 +200,11 @@ function download() {
 .btn.lg .ic { width: 15px; height: 15px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Filters row: status cards (left) + date range (right). */
+/* Filters row: status cards (<StatusFilterCards>, left) + date range (right). */
 .filters-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-/* Status filter cards — mirrors the Locate Requests page. */
-.stats {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px; max-width: 760px; flex: 1 1 560px;
-}
-.stat {
-  text-align: left; background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 12px 16px; display: flex; align-items: center; gap: 11px;
-  transition: border-color .12s; position: relative; overflow: hidden;
-}
-.stat::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--brand-500); opacity: 0; transition: opacity .12s;
-}
-.stat:hover { border-color: var(--text-mute); }
-.stat.active { border-color: var(--brand-500); border-width: 2px; padding: 11px 15px; }
-.stat.active::before { opacity: 1; }
-.stat .status-ic { color: var(--text-mute); flex: none; }
-.stat.ok.active::before, .stat.ok .stat-num, .stat.ok .status-ic { color: var(--ok); }
-.stat.warn.active::before, .stat.warn .stat-num, .stat.warn .status-ic { color: var(--warn); }
-.stat.bad.active::before, .stat.bad .stat-num, .stat.bad .status-ic { color: var(--bad); }
-.stat.ok::before { background: var(--ok); }
-.stat.warn::before { background: var(--warn); }
-.stat.bad::before { background: var(--bad); }
-.stat-top { display: flex; align-items: center; gap: 9px; flex: none; }
-.stat-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
-.stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 600; line-height: 1.2; }
+/* Let the status cards grow to fill the row beside the date range (the card root
+   is in this component's scope too, so this fall-through class applies). */
+.hist-stats { flex: 1 1 560px; }
 
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
@@ -373,22 +250,4 @@ function download() {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .count { margin: 0 0 10px; font-size: 12.5px; color: var(--text-soft); }
-
-.grid-area { flex: 1; min-height: 0; overflow-y: auto; }
-.grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
-.grid { width: 100%;
-  --ag-font-family: var(--font);
-  --ag-font-size: 13px;
-  --ag-foreground-color: var(--text);
-  --ag-header-foreground-color: var(--text);
-  --ag-background-color: var(--surface);
-  --ag-header-background-color: var(--grid-header-bg);
-  --ag-odd-row-background-color: var(--grid-zebra);
-  --ag-row-hover-color: var(--brand-50);
-  --ag-selected-row-background-color: var(--brand-50);
-  --ag-border-color: var(--border);
-  --ag-cell-horizontal-padding: 14px;
-  --ag-borders: none;
-  --ag-row-border-color: var(--border);
-}
 </style>
