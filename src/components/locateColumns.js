@@ -11,6 +11,12 @@ import StatusBadge from './StatusBadge.vue'
 const fmtQty = (p) => (p.value || p.value === 0) ? p.value.toLocaleString() : ''
 const mono = { cellClass: 'mono-cell' }
 
+// Pending / Rejected quantities are derived from the row's status: a PENDING row's
+// requested qty is its pending amount, a REJECTED row's is its rejected amount
+// (0 otherwise). Exported so the History CSV export can reuse the same derivation.
+export const qtyPendingOf = (r) => r?.status === 'PENDING' ? (r.qtyRequested || 0) : 0
+export const qtyRejectedOf = (r) => r?.status === 'REJECTED' ? (r.qtyRequested || 0) : 0
+
 export function makeLocateColumns() {
   return [
     // --- Scan set (visible by default) ---
@@ -35,6 +41,16 @@ export function makeLocateColumns() {
     { headerName: 'Qty Appr', field: 'qtyApproved', type: 'rightAligned', flex: 0.7, minWidth: 100,
       valueFormatter: fmtQty,
       cellClass: (p) => p.value > 0 ? 'mono-cell num-cell appr-pos' : 'mono-cell num-cell appr-zero' },
+    // Qty Pending — visible by default, to the right of Qty Approved.
+    { headerName: 'Qty Pend', field: 'qtyPending', type: 'rightAligned', flex: 0.7, minWidth: 100,
+      valueGetter: (p) => qtyPendingOf(p.data),
+      valueFormatter: fmtQty,
+      cellClass: (p) => p.value > 0 ? 'mono-cell num-cell pend-pos' : 'mono-cell num-cell appr-zero' },
+    // Qty Rejected — hidden by default; toggled on via the column chooser.
+    { headerName: 'Qty Rej', field: 'qtyRejected', type: 'rightAligned', minWidth: 100, hide: true,
+      valueGetter: (p) => qtyRejectedOf(p.data),
+      valueFormatter: fmtQty,
+      cellClass: (p) => p.value > 0 ? 'mono-cell num-cell rej-pos' : 'mono-cell num-cell appr-zero' },
 
     // --- Reference set (hidden by default; toggled via the column chooser) ---
     { headerName: 'BBG Ticker', field: 'bbgTicker', minWidth: 120, hide: true },
@@ -51,6 +67,7 @@ export function makeLocateColumns() {
 // Returns a fresh array so each view owns its own visibility state.
 export function makeToggleableCols() {
   return [
+    { field: 'qtyRejected', label: 'Qty Rejected', visible: false },
     { field: 'bbgTicker', label: 'BBG Ticker', visible: false },
     { field: 'batchId', label: 'Batch ID', visible: false },
     { field: 'locateId', label: 'Locate ID', visible: false },
