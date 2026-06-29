@@ -9,10 +9,10 @@ let _trendSeq = 0
 import { ref, computed } from 'vue'
 import { useModal } from '../composables/useModal.js'
 
-// Interactive trend drawer for a security's borrow rate / availability over the
-// last 24h. Dependency-free SVG with a hover crosshair + tooltip — the "click a
-// row to see the chart" interaction, Google-Finance style. (Swap in
-// Lightweight-Charts here later for candles/zoom; the data shape is ready.)
+// Interactive trend drawer for a security's borrow rate over the last 7 days (one
+// point per day). Dependency-free SVG with a hover crosshair + tooltip — the
+// "click a row to see the chart" interaction, Google-Finance style. (Availability
+// has no chart: that history isn't stored.)
 const props = defineProps({
   row: { type: Object, required: true },
   asOf: { type: String, default: '' }
@@ -22,8 +22,7 @@ const emit = defineEmits(['close', 'locate'])
 // Escape closes; focus is trapped and returned to the trigger on close.
 const { dialogRef } = useModal(() => emit('close'))
 
-const mode = ref('rate')   // 'rate' | 'qty'
-const series = computed(() => mode.value === 'rate' ? props.row.rateTrend : props.row.qtyTrend)
+const series = computed(() => props.row.rateTrend)
 
 // --- chart geometry (viewBox units) ---
 const W = 560, H = 200, PAD_L = 6, PAD_R = 6, PAD_T = 14, PAD_B = 16
@@ -55,10 +54,10 @@ const hoverPt = computed(() => (hover.value != null && geom.value) ? geom.value.
 const hoverLabel = computed(() => {
   if (hover.value == null) return ''
   const back = (series.value.length - 1) - hover.value
-  return back === 0 ? 'now' : `${back}h ago`
+  return back === 0 ? 'today' : `${back}d ago`
 })
 
-const current = computed(() => mode.value === 'rate' ? props.row.rate : props.row.availableQty)
+const current = computed(() => props.row.rate)
 const startVal = computed(() => series.value?.[0] ?? current.value)
 const delta = computed(() => current.value - startVal.value)
 const deltaPct = computed(() => startVal.value ? (delta.value / startVal.value) * 100 : 0)
@@ -69,7 +68,7 @@ const up = computed(() => delta.value >= 0)
 const color = computed(() => up.value ? 'var(--ok)' : 'var(--bad)')
 
 function fmt(v) {
-  return mode.value === 'rate' ? v.toFixed(2) + '%' : Math.round(v).toLocaleString()
+  return v.toFixed(2) + '%'
 }
 function tooltipLeftPct(px) { return (px / W) * 100 }
 
@@ -93,19 +92,14 @@ const gradId = 'trend-' + (++_trendSeq)
       <p class="d-sec">{{ row.security }} · SEDOL {{ row.sedol || '—' }}</p>
 
       <div class="d-body">
-        <!-- Metric toggle -->
-        <div class="seg">
-          <button :class="{ on: mode === 'rate' }" @click="mode = 'rate'">Borrow rate</button>
-          <button :class="{ on: mode === 'qty' }" @click="mode = 'qty'">Availability</button>
-        </div>
-
-        <!-- Headline value + change -->
+        <!-- Borrow rate headline value + change over the window -->
+        <div class="rate-label">Borrow rate</div>
         <div class="headline">
           <span class="hl-val">{{ fmt(current) }}</span>
           <span class="hl-chg" :class="up ? 'up' : 'down'">
             {{ up ? '▲' : '▼' }} {{ fmt(Math.abs(delta)) }} ({{ deltaPct >= 0 ? '+' : '' }}{{ deltaPct.toFixed(1) }}%)
           </span>
-          <span class="hl-span">last 24h</span>
+          <span class="hl-span">last 7 days</span>
         </div>
 
         <!-- Interactive chart -->
@@ -160,9 +154,7 @@ const gradId = 'trend-' + (++_trendSeq)
 .d-sec { margin: 0; padding: 0 22px 16px; color: var(--text-soft); font-size: 13px; border-bottom: 1px solid var(--border); }
 .d-body { padding: 16px 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 
-.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; align-self: flex-start; }
-.seg button { border: none; background: transparent; color: var(--text-soft); font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 2px; cursor: pointer; }
-.seg button.on { background: var(--surface); color: var(--brand-700); box-shadow: var(--shadow); }
+.rate-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute); }
 
 .headline { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .hl-val { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }

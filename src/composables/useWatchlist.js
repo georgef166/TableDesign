@@ -23,4 +23,17 @@ function toggle(ticker) {
 function isStarred(ticker) { return starred.has(ticker) }
 const count = computed(() => starred.size)
 
-export function useWatchlist() { return { starred, toggle, isStarred, count } }
+// Bulk star/unstar (persist once) — backs the "star everything currently shown"
+// header action on Availability.
+function starMany(tickers) {
+  let changed = false
+  for (const t of tickers) if (t && !starred.has(t)) { starred.add(t); changed = true }
+  if (changed) persist()
+}
+function unstarMany(tickers) {
+  let changed = false
+  for (const t of tickers) if (starred.has(t)) { starred.delete(t); changed = true }
+  if (changed) persist()
+}
+
+export function useWatchlist() { return { starred, toggle, isStarred, count, starMany, unstarMany } }

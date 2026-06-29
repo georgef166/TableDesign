@@ -24,12 +24,24 @@ const snapshot = ref(generateSnapshot())
 const rows = computed(() => snapshot.value.filter(r => r.availableQty > 0))
 
 // --- watchlist (star to pin to top; optional watchlist-only filter) ---
-const { toggle: toggleStarRaw, isStarred, count: starCount } = useWatchlist()
+const { toggle: toggleStarRaw, isStarred, count: starCount, starMany, unstarMany } = useWatchlist()
 const watchlistOnly = ref(false)
 function toggleWatchlistOnly() { watchlistOnly.value = !watchlistOnly.value; page.value = 0 }
 // Starring re-pins the row to the top of the list, so reset to page 1 — otherwise
 // the row appears to vanish from the page it was starred on.
 function toggleStar(ticker) { toggleStarRaw(ticker); page.value = 0 }
+
+// Header star: bulk-star everything currently shown (i.e. matching the search /
+// filters, across pages). If all shown rows are already starred, it unstars them
+// instead — like a select-all toggle.
+const allShownStarred = computed(() =>
+  displayRows.value.length > 0 && displayRows.value.every(r => isStarred(r.ticker)))
+function toggleAllShown() {
+  const tickers = displayRows.value.map(r => r.ticker)
+  if (!tickers.length) return
+  allShownStarred.value ? unstarMany(tickers) : starMany(tickers)
+  page.value = 0
+}
 
 // --- search (same lookup as the other pages: ticker / SEDOL / ISIN / security) ---
 const query = ref('')
@@ -151,9 +163,16 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
       <table class="tbl">
         <thead>
           <tr>
-            <th class="star-col"></th>
+            <th class="star-col">
+              <button class="star-btn head-star" :class="{ on: allShownStarred }" @click="toggleAllShown"
+                      :disabled="!displayRows.length" :aria-pressed="allShownStarred"
+                      :title="allShownStarred ? 'Unstar all shown securities' : 'Star all shown securities'">
+                <svg viewBox="0 0 24 24" :fill="allShownStarred ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.9 5.9 6.1.9-4.5 4.4 1.1 6.2L12 17.8 6.4 20.4l1.1-6.2L3 9.8l6.1-.9z" /></svg>
+              </button>
+            </th>
             <th>Ticker</th><th>SEDOL</th><th>Security</th><th>Country</th>
-            <th class="num">Available</th><th class="num">Rate</th><th>Rate trend (24h)</th><th></th>
+            <th class="num">Available</th><th class="num">Rate</th><th>Rate trend (7d)</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -248,6 +267,8 @@ function fmtRate(r) { return r.toFixed(2) + '%' }
 .star-btn svg { width: 16px; height: 16px; }
 .star-btn:hover { color: #e0a500; transform: scale(1.12); }
 .star-btn.on { color: #f0b500; }
+.head-star:disabled { opacity: .4; cursor: not-allowed; }
+.head-star:disabled:hover { color: var(--text-mute); transform: none; }
 .empty-row { text-align: center; padding: 28px; color: var(--text-mute); font-size: 13px; }
 .tkr { font-weight: 700; }
 .name { color: var(--text-soft); }
