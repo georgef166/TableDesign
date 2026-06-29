@@ -49,11 +49,13 @@
   --brand-700: #f5404a;   /* accent text needs to lift off dark surfaces */
   --brand-50:  #2a1416;   /* tint used for hovers / active states */
 
-  --bg:        #0e1419;
+  /* Deepened neutral scale (mirrors the light theme): darker page so the lighter
+     surfaces lift, and more visible borders / header band / zebra. */
+  --bg:        #0b1016;   /* darker page so cards + grid stand out */
   --surface:   #1a212b;
-  --surface-2: #232c38;
-  --border:    #313c4a;
-  --border-2:  #283240;
+  --surface-2: #28323f;   /* a clearer raised step */
+  --border:    #46535f;   /* clearly visible card edges + grid lines */
+  --border-2:  #333d49;   /* lighter interior hairlines */
 
   --text:      #f1f5f9;
   --text-soft: #cbd5e1;
@@ -63,8 +65,8 @@
   --warn:      #fbbf24;  --warn-bg: #3a2c12;
   --bad:       #f5707a;  --bad-bg:  #3a1a1d;
 
-  --grid-header-bg: #232f3e;
-  --grid-zebra:     #1f2731;
+  --grid-header-bg: #2c3a48;   /* distinct header band */
+  --grid-zebra:     #222b36;   /* distinct alternating rows */
 
   --shadow:    0 1px 2px rgba(0,0,0,.30), 0 8px 24px rgba(0,0,0,.40);
   --shadow-lg: 0 20px 60px rgba(0,0,0,.55);
