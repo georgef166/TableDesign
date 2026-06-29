@@ -6,16 +6,17 @@
   --brand-400: #f5404a;
   --brand-50:  #fdecec;
 
-  /* Surfaces */
-  --bg:        #f5f7fb;
+  /* Surfaces — a deepened neutral scale so white cards/rows clearly lift off the
+     page and dividers are actually visible (WCAG 1.4.11 non-text contrast). */
+  --bg:        #e2e8f1;   /* deeper page so white surfaces separate */
   --surface:   #ffffff;
-  --surface-2: #f8fafc;
-  --border:    #e6eaf2;
-  --border-2:  #eef1f7;
+  --surface-2: #eaeff7;   /* a real step below white, not near-white */
+  --border:    #aab6c8;   /* clearly visible card edges + grid lines (~2:1 on white) */
+  --border-2:  #cdd6e4;   /* lighter interior hairlines */
 
   /* Grid header band + zebra (tokenised so dark mode can adapt them). */
-  --grid-header-bg: #e7edf6;
-  --grid-zebra:     #f4f7fb;
+  --grid-header-bg: #ccd7e7;   /* deeper band so the header reads as a header */
+  --grid-zebra:     #e6ecf5;   /* distinct alternating rows */
 
   /* Text — black-first; the soft/mute tones are near-black so secondary text
      still reads black while keeping a faint hierarchy. */
