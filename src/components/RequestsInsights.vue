@@ -1,7 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import Donut from './Donut.vue'
-import Sparkline from './Sparkline.vue'
 
 // A compact "desk insights" dashboard over the (already company-scoped) locate
 // requests: status mix donut, request volume over time, and top requested names.
@@ -25,16 +24,32 @@ const statusSegments = computed(() => [
   { label: 'Rejected', value: counts.value.REJECTED, color: 'var(--bad)' }
 ])
 
-// Request volume per day (ascending), for the trend area.
+// Requests per day (chronological), capped to the most recent days so the bars
+// stay readable. Each bar is labelled with its date + count and highlights on hover.
+const MAX_DAYS = 14
 const volume = computed(() => {
   const byDay = new Map()
   for (const r of props.rows) {
     const day = (r.requestDate || '').slice(0, 10)
     if (day) byDay.set(day, (byDay.get(day) || 0) + 1)
   }
-  const days = [...byDay.keys()].sort()
-  return { days, series: days.map(d => byDay.get(d)) }
+  const days = [...byDay.keys()].sort().slice(-MAX_DAYS)
+  const series = days.map(d => byDay.get(d))
+  return { days, series, max: series.length ? Math.max(...series) : 0 }
 })
+// Total over the shown window, so the headline number matches the bars.
+const volTotal = computed(() => volume.value.series.reduce((a, b) => a + b, 0))
+
+const volHover = ref(null)   // index of the hovered day, or null
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// '2026-06-26' → 'Jun 26' (parse the string parts; avoids Date/timezone shifts).
+function shortDay(d) {
+  return `${MONTHS[Number(d.slice(5, 7)) - 1] || ''} ${Number(d.slice(8, 10))}`
+}
+// Bar height as a % of the tallest day; floor so a 1-count day is still a visible nub.
+function barH(i) {
+  return Math.max(6, Math.round((volume.value.series[i] / (volume.value.max || 1)) * 100)) + '%'
+}
 
 // Top requested securities by count.
 const topTickers = computed(() => {
@@ -68,16 +83,24 @@ const topTickers = computed(() => {
       </div>
     </div>
 
-    <!-- Volume over time -->
+    <!-- Requests per day -->
     <div class="ins-card">
-      <div class="ins-title">Request volume</div>
+      <div class="ins-title">Requests per day</div>
       <div class="ins-vol">
-        <span class="vol-num">{{ total }}</span>
-        <span class="vol-cap">requests · {{ volume.days.length }} day{{ volume.days.length === 1 ? '' : 's' }}</span>
+        <span class="vol-num">{{ volTotal }}</span>
+        <span class="vol-cap">requests · last {{ volume.days.length }} day{{ volume.days.length === 1 ? '' : 's' }}</span>
       </div>
-      <Sparkline v-if="volume.series.length > 1" :data="volume.series"
-                 :width="240" :height="56" color="var(--brand-500)" :stroke-width="2" />
-      <div v-else class="ins-empty">Not enough history to chart.</div>
+      <div v-if="volume.days.length" class="vbars"
+           role="img" :aria-label="`Requests per day over the last ${volume.days.length} days`">
+        <div v-for="(d, i) in volume.days" :key="d" class="vbar-col"
+             @mouseenter="volHover = i" @mouseleave="volHover = null"
+             :title="`${shortDay(d)} — ${volume.series[i]} request${volume.series[i] === 1 ? '' : 's'}`">
+          <span class="vbar-val" :class="{ hot: volHover === i }">{{ volume.series[i] }}</span>
+          <div class="vbar-track"><div class="vbar-fill" :class="{ hot: volHover === i }" :style="{ height: barH(i) }"></div></div>
+          <span class="vbar-lbl" :class="{ hot: volHover === i }">{{ shortDay(d) }}</span>
+        </div>
+      </div>
+      <div v-else class="ins-empty">No requests yet.</div>
     </div>
 
     <!-- Top requested -->
@@ -116,9 +139,20 @@ const topTickers = computed(() => {
 .legend b { color: var(--text); margin-left: auto; font-variant-numeric: tabular-nums; }
 .dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
 
-.ins-vol { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.ins-vol { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 .vol-num { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
 .vol-cap { font-size: 12px; color: var(--text-mute); }
+
+/* Interactive per-day bars: count on top, date below, highlight on hover. */
+.vbars { display: flex; align-items: flex-end; gap: 6px; height: 96px; }
+.vbar-col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: default; }
+.vbar-val { font-size: 11px; font-weight: 700; color: var(--text-soft); font-variant-numeric: tabular-nums; transition: color .12s; }
+.vbar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.vbar-fill { width: 100%; min-height: 3px; background: var(--brand-400); border-radius: 3px 3px 0 0; transition: height .4s ease, background .12s; }
+.vbar-lbl { font-size: 10px; color: var(--text-mute); white-space: nowrap; transition: color .12s; }
+.vbar-val.hot { color: var(--brand-700); }
+.vbar-fill.hot { background: var(--brand-500); }
+.vbar-lbl.hot { color: var(--text); font-weight: 600; }
 
 .bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 .bars li { display: grid; grid-template-columns: 52px 1fr 26px; align-items: center; gap: 8px; font-size: 12.5px; }

@@ -2,7 +2,7 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 import LocateGrid from './LocateGrid.vue'
 import StatusFilterCards from './StatusFilterCards.vue'
-import { makeToggleableCols } from './locateColumns.js'
+import { makeToggleableCols, qtyPendingOf, qtyRejectedOf } from './locateColumns.js'
 import { useRequests } from '../composables/useRequests.js'
 import { useDensity } from '../composables/useDensity.js'
 import { downloadCsv } from '../utils/csv.js'
@@ -99,12 +99,18 @@ const DEFAULT_EXPORT = [
   { key: 'ticker', header: 'Ticker' },
   { key: 'security', header: 'Security' },
   { key: 'qtyRequested', header: 'Qty Requested' },
-  { key: 'qtyApproved', header: 'Qty Approved' }
+  { key: 'qtyApproved', header: 'Qty Approved' },
+  { key: 'qtyPending', header: 'Qty Pending' }
 ]
 function download() {
   const tag = (props.viewedUser?.firm || 'all-firms').toLowerCase().replace(/[^a-z0-9]+/g, '-')
   const extra = toggleableCols.value.filter(c => c.visible).map(c => ({ key: c.field, header: c.label }))
-  downloadCsv(`locate-history_${tag}_${today}.csv`, historyRows.value, [...DEFAULT_EXPORT, ...extra])
+  // qtyPending / qtyRejected are derived (not stored on the row), so materialise
+  // them onto the export rows or they'd come out blank.
+  const exportRows = historyRows.value.map(r => ({
+    ...r, qtyPending: qtyPendingOf(r), qtyRejected: qtyRejectedOf(r)
+  }))
+  downloadCsv(`locate-history_${tag}_${today}.csv`, exportRows, [...DEFAULT_EXPORT, ...extra])
 }
 </script>
 

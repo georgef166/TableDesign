@@ -129,6 +129,8 @@ defineExpose({ flash })
 .strong-cell { font-weight: 600; }
 .appr-pos { color: var(--ok); font-weight: 600; }
 .appr-zero { color: var(--text-mute); }
+.pend-pos { color: var(--warn); font-weight: 600; }
+.rej-pos  { color: var(--bad);  font-weight: 600; }
 /* Status word colored by value (also a fallback if the badge renderer is bypassed) */
 .status-ok   { color: var(--ok);   font-weight: 700; }
 .status-warn { color: var(--warn); font-weight: 700; }
