@@ -63,7 +63,9 @@ const CARDS = [
 .stat.warn::before { background: var(--warn); }
 .stat.bad::before { background: var(--bad); }
 .stat-top { display: flex; align-items: center; gap: 9px; flex: none; }
-.stat-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+/* Default number colour (the "All" card); coloured cards override below. Without
+   this the number falls back to the <button> default (black) and disappears in dark mode. */
+.stat-num { font-size: 26px; font-weight: 700; letter-spacing: -.02em; line-height: 1; color: var(--text); }
 .stat-lbl { font-size: 12px; color: var(--text-soft); font-weight: 600; line-height: 1.2; }
 
 @media (max-width: 760px) {
