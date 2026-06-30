@@ -24,17 +24,27 @@ const statusSegments = computed(() => [
   { label: 'Rejected', value: counts.value.REJECTED, color: 'var(--bad)' }
 ])
 
-// Requests per day (chronological), capped to the most recent days so the bars
-// stay readable. Each bar is labelled with its date + count and highlights on hover.
-const MAX_DAYS = 14
+// Requests per day over a CONTINUOUS rolling window ending today — one bar per
+// calendar day (zero-request days included), so "last N days" is a real timeline,
+// not a list of active days. Each bar is labelled with its date + count.
+const WINDOW_DAYS = 7
+const pad = (n) => String(n).padStart(2, '0')
+const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const volume = computed(() => {
   const byDay = new Map()
   for (const r of props.rows) {
     const day = (r.requestDate || '').slice(0, 10)
     if (day) byDay.set(day, (byDay.get(day) || 0) + 1)
   }
-  const days = [...byDay.keys()].sort().slice(-MAX_DAYS)
-  const series = days.map(d => byDay.get(d))
+  const days = [], series = []
+  const today = new Date()
+  for (let i = WINDOW_DAYS - 1; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const key = isoDay(d)
+    days.push(key)
+    series.push(byDay.get(key) || 0)
+  }
   return { days, series, max: series.length ? Math.max(...series) : 0 }
 })
 // Total over the shown window, so the headline number matches the bars.
@@ -88,19 +98,19 @@ const topTickers = computed(() => {
       <div class="ins-title">Requests per day</div>
       <div class="ins-vol">
         <span class="vol-num">{{ volTotal }}</span>
-        <span class="vol-cap">requests · last {{ volume.days.length }} day{{ volume.days.length === 1 ? '' : 's' }}</span>
+        <span class="vol-cap">requests · last {{ WINDOW_DAYS }} days</span>
       </div>
-      <div v-if="volume.days.length" class="vbars"
-           role="img" :aria-label="`Requests per day over the last ${volume.days.length} days`">
+      <div class="vbars" role="img"
+           :aria-label="`Requests per day over the last ${WINDOW_DAYS} days`">
         <div v-for="(d, i) in volume.days" :key="d" class="vbar-col"
              @mouseenter="volHover = i" @mouseleave="volHover = null"
              :title="`${shortDay(d)} — ${volume.series[i]} request${volume.series[i] === 1 ? '' : 's'}`">
-          <span class="vbar-val" :class="{ hot: volHover === i }">{{ volume.series[i] }}</span>
+          <span class="vbar-val" :class="{ hot: volHover === i, zero: !volume.series[i] }">{{ volume.series[i] }}</span>
           <div class="vbar-track"><div class="vbar-fill" :class="{ hot: volHover === i }" :style="{ height: barH(i) }"></div></div>
           <span class="vbar-lbl" :class="{ hot: volHover === i }">{{ shortDay(d) }}</span>
         </div>
       </div>
-      <div v-else class="ins-empty">No requests yet.</div>
+      <p v-if="!volTotal" class="ins-empty vbars-empty">No requests in the last {{ WINDOW_DAYS }} days.</p>
     </div>
 
     <!-- Top requested -->
@@ -150,9 +160,11 @@ const topTickers = computed(() => {
 .vbar-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
 .vbar-fill { width: 100%; min-height: 3px; background: var(--brand-400); border-radius: 3px 3px 0 0; transition: height .4s ease, background .12s; }
 .vbar-lbl { font-size: 10px; color: var(--text-mute); white-space: nowrap; transition: color .12s; }
+.vbar-val.zero { color: var(--text-mute); font-weight: 600; }
 .vbar-val.hot { color: var(--brand-700); }
 .vbar-fill.hot { background: var(--brand-500); }
 .vbar-lbl.hot { color: var(--text); font-weight: 600; }
+.vbars-empty { margin: 8px 0 0; }
 
 .bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 .bars li { display: grid; grid-template-columns: 52px 1fr 26px; align-items: center; gap: 8px; font-size: 12.5px; }

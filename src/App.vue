@@ -72,7 +72,7 @@ function exitImpersonation() {
 const toggleableCols = ref(makeToggleableCols())
 const extraColCount = computed(() => toggleableCols.value.filter(c => c.visible).length)
 const gridRef = ref(null)
-const lastRefreshed = ref('2026-06-09 16:22:21')
+const lastRefreshed = ref(stamp())
 
 /* ---------- derived ---------- */
 // When impersonating a client, the grid + counts are scoped to that client's

@@ -13,7 +13,7 @@ import { seedLocates } from '../data/locates.js'
 import { firmOf } from '../data/users.js'
 import { stamp } from '../utils/datetime.js'
 
-const rows = useSessionStore('locate-requests-v2', [], seedLocates)
+const rows = useSessionStore('locate-requests-v3', [], seedLocates)
 
 // IDs continue past the highest persisted record so reloads don't collide.
 let nextId = Math.max(0, ...rows.value.map(r => r.id || 0)) + 1
